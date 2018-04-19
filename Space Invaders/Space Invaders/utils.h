@@ -13,3 +13,13 @@ struct Elemento {
 	int largura;
 	int altura;
 };
+
+typedef struct {
+	bool anda_esperto;
+	bool isLeft;
+	bool fimJanela;
+	int vida;
+	int velocidade;
+	int i_desparo;
+	struct Elemento e;
+}Nave;
