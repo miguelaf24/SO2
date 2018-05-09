@@ -4,7 +4,7 @@ BOOL(*StartServer)(void);
 BOOL(*StartBuff)(void);
 Jogada(*GetMSG)();
 BOOL(*wrtMSG)(Jogada);
-BOOL(*setbuff)(pBuff);
+pBuff(*rbuff)();
 
 int _tmain(int argc, LPTSTR argv[]) {
 	TCHAR resp;
@@ -32,7 +32,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 	StartBuff = (BOOL(*)())GetProcAddress(hDLL, "startBuffer");
 	GetMSG = (Jogada(*)())GetProcAddress(hDLL, "ReadBuffer");
 	wrtMSG = (BOOL(*)(Jogada))GetProcAddress(hDLL, "WriteBuffer");
-
+	rbuff= (pBuff(*)())GetProcAddress(hDLL, "returnBuff"); 
 	if (!StartServer()) {
 		_tprintf(TEXT("Erro: não foi possível criar Servidor -> %d\n"), GetLastError());
 		return 0;
@@ -41,19 +41,49 @@ int _tmain(int argc, LPTSTR argv[]) {
 		_tprintf(TEXT("Erro: não foi possível criar buffer -> %d\n"), GetLastError());
 		return 0;
 	}
-
-
+	pBuff teste;
 	Jogada jogada, jogada1; jogada.id = 69; jogada.Dir = 69; jogada1.id = 0; jogada1.Dir = 0;
+
+	teste = rbuff();
+	_tprintf(TEXT("0 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
 	if (!wrtMSG(jogada)) {
 		_tprintf(TEXT("Erro: não foi possível escrever do buffer -> %d\n"), GetLastError());
 		return 0;
 	}	
+	teste = rbuff();
+	_tprintf(TEXT("1 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
+	if (!wrtMSG(jogada1)) {
+		_tprintf(TEXT("Erro: não foi possível escrever do buffer -> %d\n"), GetLastError());
+		return 0;
+	}
+	teste = rbuff();
+	_tprintf(TEXT("2 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
 
 
 	jogada1 = GetMSG();
+	_tprintf(TEXT("devia ser 69 69 memoria  %d e a dir %d \n"), jogada1.id, jogada1.Dir );
+	teste = rbuff();
+	_tprintf(TEXT("3 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
+	jogada = GetMSG();
+	_tprintf(TEXT("devia ser 0 0 memoria  %d e a dir %d \n"), jogada.id, jogada.Dir);
+	teste = rbuff();
+	_tprintf(TEXT("4 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
 
-	_tprintf(TEXT("li da memoria  %d e a dir %d \n"), jogada1.id, jogada1.Dir );
 
+
+	if (!wrtMSG(jogada)) {
+		_tprintf(TEXT("Erro: não foi possível escrever do buffer -> %d\n"), GetLastError());
+		return 0;
+	}
+	teste = rbuff();
+	_tprintf(TEXT("5 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
+
+	jogada1 = GetMSG();
+	_tprintf(TEXT("devia ser 69 69 memoria  %d e a dir %d \n"), jogada1.id, jogada1.Dir);
+
+
+
+	
 
 
 
