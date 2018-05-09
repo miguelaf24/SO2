@@ -41,6 +41,14 @@ typedef struct {
 }PowerUP;
 
 typedef struct {
+	struct Elemento e;
+	int lifes;
+	int velocidade;
+	TCHAR name;
+	TCHAR points;
+}Player;
+
+typedef struct {
 	Nave navesnormais[10];
 	Nave navesesquivas[10];
 	Player player1;
@@ -56,19 +64,11 @@ typedef struct {
 }Bomba;
 
 typedef struct {
-	struct Elemento e;
-	int lifes;
-	int velocidade;
-	TCHAR name;
-	TCHAR points;
-}Player;
-
-typedef struct {
 	int id;
 	int Dir;
 }Jogada;
 
-typedef struct Buffer {
+typedef struct {
 	int nextIn;	//indice de escrita
 	int nextOut; //indice de leitura
 	Jogada buffer[BUFFSIZE];
