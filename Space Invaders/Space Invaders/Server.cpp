@@ -78,8 +78,6 @@ int _tmain(int argc, LPTSTR argv[]) {
 	teste = rbuff();
 	_tprintf(TEXT("5 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
 
-	jogada1 = GetMSG();
-	_tprintf(TEXT("devia ser 69 69 memoria  %d e a dir %d \n"), jogada1.id, jogada1.Dir);
 
 
 
