@@ -42,9 +42,9 @@ int _tmain(int argc, LPTSTR argv[]) {
 		return 0;
 	}
 	pBuff teste;
-	Jogada jogada, jogada1; jogada.id = 69; jogada.Dir = 69; jogada1.id = 0; jogada1.Dir = 0;
+	Jogada jogada, jogada1; jogada.id = 0; jogada.Dir = 0; jogada1.id = 0; jogada1.Dir = 0;
 
-	teste = rbuff();
+/*	teste = rbuff();
 	_tprintf(TEXT("0 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
 	if (!wrtMSG(jogada)) {
 		_tprintf(TEXT("Erro: não foi possível escrever do buffer -> %d\n"), GetLastError());
@@ -57,7 +57,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 		return 0;
 	}
 	teste = rbuff();
-	_tprintf(TEXT("2 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
+	_tprintf(TEXT("2 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);*/
 
 
 	jogada1 = GetMSG();
@@ -65,7 +65,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 	teste = rbuff();
 	_tprintf(TEXT("3 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
 	jogada = GetMSG();
-	_tprintf(TEXT("devia ser 0 0 memoria  %d e a dir %d \n"), jogada.id, jogada.Dir);
+	_tprintf(TEXT("devia ser 68 68 memoria  %d e a dir %d \n"), jogada.id, jogada.Dir);
 	teste = rbuff();
 	_tprintf(TEXT("4 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
 
