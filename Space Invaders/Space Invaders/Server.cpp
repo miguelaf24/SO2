@@ -2,14 +2,25 @@
 
 BOOL(*StartServer)(void);
 BOOL(*StartBuff)(void);
-Jogada(*GetMSG)();
-BOOL(*wrtMSG)(Jogada);
+Command(*GetMSG)();
+BOOL(*setGame)(pJogo game);
+BOOL(*wrtMSG)(Command);
 pBuff(*rbuff)();
+HMODULE hDLL;
+HANDLE hThreadListener, eGameUpdate, mGameAcess, hThreadGame;
+Jogo gameData;
+
+
+//Threads
+DWORD WINAPI ReadBufferThread(LPVOID params);
+DWORD WINAPI thread_Jogo(LPVOID jogo);
+
+//FUNCTIONS
+void TrataComando(Command temp);
+
 
 int _tmain(int argc, LPTSTR argv[]) {
-	TCHAR resp;
-	int y;
-	
+	int resp;
 
 	//DWORD threadId[]; //Id da thread a ser criada
 	//HANDLE hT[4] = (HANDLE *)malloc(4 * sizeof(HANDLE)); //HANDLE/ponteiro para a thread a ser criada
@@ -21,81 +32,51 @@ int _tmain(int argc, LPTSTR argv[]) {
 	srand((int)time(NULL));
 
 	//DLL LOAD
-	HMODULE hDLL = LoadLibrary("SpaceDLL");
-
+	hDLL = LoadLibrary("SpaceDLL");
 	if (hDLL == NULL) {
 		_tprintf(_T("(DEBUG)DLL:Erro-> Loading DLL\n"));
 		return 0;
 	}
-
+	mGameAcess = CreateMutex(NULL, FALSE, _T("mGameAcess"));
+	eGameUpdate= CreateEvent(NULL, TRUE, FALSE, TEXT("GameUpdateEvent"));
 	StartServer = (BOOL(*)())GetProcAddress(hDLL, "startSpaceServer");
 	StartBuff = (BOOL(*)())GetProcAddress(hDLL, "startBuffer");
-	GetMSG = (Jogada(*)())GetProcAddress(hDLL, "ReadBuffer");
-	wrtMSG = (BOOL(*)(Jogada))GetProcAddress(hDLL, "WriteBuffer");
-	rbuff= (pBuff(*)())GetProcAddress(hDLL, "returnBuff"); 
-	if (!StartServer()) {
-		_tprintf(TEXT("Erro: não foi possível criar Servidor -> %d\n"), GetLastError());
+	GetMSG = (Command(*)())GetProcAddress(hDLL, "ReadBuffer");
+	wrtMSG = (BOOL(*)(Command))GetProcAddress(hDLL, "WriteBuffer");
+	setGame = (BOOL(*)(pJogo))GetProcAddress(hDLL, "setGame"); //declaração função do DLL
+	gameData.dificuldade = 0;//TESTE APENAS
+
+	if (!StartServer()) { //incia server, e memoria partilhada
+		_tprintf(TEXT("(DEBUG)Server:Erro-> Starting Server\n %d\n"), GetLastError());
 		return 0;
 	}
-	if (!StartBuff()) {
-		_tprintf(TEXT("Erro: não foi possível criar buffer -> %d\n"), GetLastError());
+	if (!StartBuff()) { //inicia buffer de mensagens
+		_tprintf(TEXT("(DEBUG)Server:Erro-> Starting Buffer\n %d\n"), GetLastError());
 		return 0;
 	}
-	pBuff teste;
-	Jogada jogada, jogada1; jogada.id = 0; jogada.Dir = 0; jogada1.id = 0; jogada1.Dir = 0;
 
-/*	teste = rbuff();
-	_tprintf(TEXT("0 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
-	if (!wrtMSG(jogada)) {
-		_tprintf(TEXT("Erro: não foi possível escrever do buffer -> %d\n"), GetLastError());
-		return 0;
-	}	
-	teste = rbuff();
-	_tprintf(TEXT("1 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
-	if (!wrtMSG(jogada1)) {
-		_tprintf(TEXT("Erro: não foi possível escrever do buffer -> %d\n"), GetLastError());
+	hThreadListener = CreateThread(NULL,0, ReadBufferThread,NULL,0,0);
+	if (hThreadListener == NULL) {
+		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
 		return 0;
 	}
-	teste = rbuff();
-	_tprintf(TEXT("2 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);*/
-
-
-	jogada1 = GetMSG();
-	_tprintf(TEXT("devia ser 69 69 memoria  %d e a dir %d \n"), jogada1.id, jogada1.Dir );
-	teste = rbuff();
-	_tprintf(TEXT("3 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
-	jogada = GetMSG();
-	_tprintf(TEXT("devia ser 68 68 memoria  %d e a dir %d \n"), jogada.id, jogada.Dir);
-	teste = rbuff();
-	_tprintf(TEXT("4 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
-
-
-
-	if (!wrtMSG(jogada)) {
-		_tprintf(TEXT("Erro: não foi possível escrever do buffer -> %d\n"), GetLastError());
-		return 0;
-	}
-	teste = rbuff();
-	_tprintf(TEXT("5 IN: in  %d e OUT: %d \n"), teste->nextIn, teste->nextOut);
-
-
-
-
-	
-
-
-
-
-
 
 	_tprintf(TEXT("Dificuldade (1,2,3)"));
-	_tscanf_s(TEXT("%c"), &resp, 1);
-	/*
-	_tprintf(TEXT("Iniciar (S/N)?"));
-	_tscanf_s(TEXT("%c"), &resp, 1);
-	*/
-	_tprintf(TEXT("Iniciar (S/N)?"));
-	_tscanf_s(TEXT("%c"), &resp, 1);
+	_tscanf_s(TEXT("%d"), &resp, 1);
+	gameData.dificuldade = resp;
+	setGame(&gameData);
+
+	hThreadGame = CreateThread(NULL, 0, thread_Jogo, NULL, 0, 0);
+	if (hThreadGame == NULL) {
+		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
+		return 0;
+	}
+
+
+	/*_tprintf(TEXT("Iniciar (S/N)?"));
+	_tscanf_s(TEXT("%c"), &resp, 1);*/
+
+
 	if (resp == 'S' || resp == 's') {
 		
 
@@ -138,14 +119,47 @@ int _tmain(int argc, LPTSTR argv[]) {
 
 		CloseHandle(Mutex);*/
 	}
+
+
+	WaitForSingleObject(hThreadListener, INFINITE);
 	_tprintf(TEXT("[Thread Principal %d]Vou terminar..."), GetCurrentThreadId());
 	
+
 	return 0;
 }
 
+DWORD WINAPI ReadBufferThread(LPVOID params) {
+	
+	Command temp;
+
+	while (1) {
+
+		temp = GetMSG(); //inicia a função do dll que aguarda pelo semaforo;
+		_tprintf(TEXT("\n[THREAD] Leitura: %d %d\n"), temp.id, temp.cmd);
 
 
-/*
+		//CHAMA FUNÇÃO DE MANIPULAÇÂO DE COMANDOS
+		TrataComando(temp);
+	}
+
+}
+
+void TrataComando(Command temp) {
+	
+	WaitForSingleObject(mGameAcess, INFINITE); //aguarda disponibilidade do mutex de acesso aos dados de jogo
+		
+	//trata de tudo o que tem a ver com o comando;
+	//TODO bla bla bla
+
+	setGame(&gameData);// grava as alterações na memoria partilhada
+	SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
+	ResetEvent(eGameUpdate);//fecha a sinalização do evento
+
+	ReleaseMutex(mGameAcess); //liberta mutex
+	
+}
+
+
 
 
 DWORD WINAPI thread_basica(LPVOID nave) {
@@ -185,4 +199,24 @@ DWORD WINAPI thread_esquiva(LPVOID nave) {
 
 	}
 
-}*/
+}
+
+DWORD WINAPI thread_Jogo(LPVOID jogo) {
+	pJogo j;
+	j = (pJogo)&gameData;
+
+	Nave nave;
+	switch (j->dificuldade) {
+
+		case 1:
+			nave.quantidade = 10;
+			break;
+		case 2:
+			nave.quantidade = 20;
+			break;
+		case 3:
+			nave.quantidade = 30;
+			break;
+	}
+	
+}

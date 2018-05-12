@@ -9,7 +9,7 @@
 
 #define BUFFSIZE 30
 
-
+#define TCHARSIZE 30
 
 //direções
 #define LEFT 0
@@ -25,14 +25,14 @@ struct Elemento {
 };
 
 typedef struct {
-	bool anda_esperto;
+	int tipo;
 	bool isLeft;
 	bool fimJanela;
 	int vida;
 	int velocidade;
 	int i_desparo;
 	struct Elemento e;
-}Nave;
+}Nave, *pNave;
 
 typedef struct {
 	TCHAR name;
@@ -41,19 +41,27 @@ typedef struct {
 }PowerUP;
 
 typedef struct {
-	struct Elemento e;
-	int lifes;
-	int velocidade;
-	TCHAR name;
-	TCHAR points;
-}Player;
+	TCHAR name[TCHARSIZE];
+	int powerup;
+	int tpowerup;
+	Nave nave;
+	int points;
+	int nvidas;
+}Player, *pPlayer;
 
 typedef struct {
-	Nave navesnormais[10];
-	Nave navesesquivas[10];
-	Player player1;
+	pNave navesnormais;
+	pNave navesesquivas;
+	pPlayer player;
 	int dificuldade;
+	
 }Jogo, *pJogo;
+
+typedef struct {
+	int id;
+	int efeito;
+	Elemento e;
+} Powerup, *pPowerup;
 
 typedef struct {
 	struct Elemento e;
@@ -65,11 +73,11 @@ typedef struct {
 
 typedef struct {
 	int id;
-	int Dir;
-}Jogada;
+	int cmd;
+}Command;
 
 typedef struct {
 	int nextIn;	//indice de escrita
 	int nextOut; //indice de leitura
-	Jogada buffer[BUFFSIZE];
+	Command buffer[BUFFSIZE];
 }Buff, *pBuff;
