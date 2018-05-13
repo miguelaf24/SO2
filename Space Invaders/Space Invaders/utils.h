@@ -25,7 +25,6 @@ struct Elemento {
 };
 
 typedef struct {
-	int tipo;
 	bool isLeft;
 	bool fimJanela;
 	int vida;
@@ -50,9 +49,13 @@ typedef struct {
 }Player, *pPlayer;
 
 typedef struct {
+	int nNavesNormais;
 	pNave navesnormais;
+	int nNavesEsquivas;
 	pNave navesesquivas;
+	int nPlayers;
 	pPlayer player;
+	int disparo;
 	int dificuldade;
 	
 }Jogo, *pJogo;
@@ -74,7 +77,7 @@ typedef struct {
 typedef struct {
 	int id;
 	int cmd;
-}Command;
+}Command, *pCommand;
 
 typedef struct {
 	int nextIn;	//indice de escrita

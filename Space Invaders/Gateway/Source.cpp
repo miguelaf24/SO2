@@ -19,7 +19,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 	srand((int)time(NULL));
 
 	//DLL LOAD
-	HMODULE hDLL = LoadLibrary("SpaceDLL");
+	HMODULE hDLL = LoadLibrary(_T("SpaceDLL"));
 
 	if (hDLL == NULL) {
 		_tprintf(_T("(DEBUG)DLL:Erro-> Loading DLL\n"));

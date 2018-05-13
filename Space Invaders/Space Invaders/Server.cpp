@@ -1,5 +1,4 @@
 #include "utils.h"
-
 BOOL(*StartServer)(void);
 BOOL(*StartBuff)(void);
 Command(*GetMSG)();
@@ -17,6 +16,7 @@ DWORD WINAPI thread_Jogo(LPVOID jogo);
 
 //FUNCTIONS
 void TrataComando(Command temp);
+bool CanMoveInvader(int x, int y);
 
 
 int _tmain(int argc, LPTSTR argv[]) {
@@ -28,11 +28,12 @@ int _tmain(int argc, LPTSTR argv[]) {
 #ifdef UNICODE
 	_setmode(_fileno(stdin), _O_WTEXT);
 	_setmode(_fileno(stdout), _O_WTEXT);
+	_setmode(_fileno(stderr), _O_WTEXT);
 #endif
 	srand((int)time(NULL));
 
 	//DLL LOAD
-	hDLL = LoadLibrary("SpaceDLL");
+	hDLL = LoadLibrary(_T("SpaceDLL"));
 	if (hDLL == NULL) {
 		_tprintf(_T("(DEBUG)DLL:Erro-> Loading DLL\n"));
 		return 0;
@@ -61,11 +62,12 @@ int _tmain(int argc, LPTSTR argv[]) {
 		return 0;
 	}
 
-	_tprintf(TEXT("Dificuldade (1,2,3)"));
-	_tscanf_s(TEXT("%d"), &resp, 1);
+	_tprintf(TEXT("PARA TESTES DE COMS COM GATEWAY E INICIALIZAÇÃO-> Insira dificuldade (1,2,3)"));
+	_tscanf_s(_T("%d"), &resp);
+	
 	gameData.dificuldade = resp;
 	setGame(&gameData);
-
+	
 	hThreadGame = CreateThread(NULL, 0, thread_Jogo, NULL, 0, 0);
 	if (hThreadGame == NULL) {
 		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
@@ -163,60 +165,133 @@ void TrataComando(Command temp) {
 
 
 DWORD WINAPI thread_basica(LPVOID nave) {
-	Nave *a;
 
-	a = (Nave *)nave;
-	while (a->vida > 0) {
+	
 
-		Sleep(a->velocidade);
-		if (a->fimJanela) {
+	Nave *n = gameData.navesnormais;
+	
 
-			if (can_move()) {
-				if (a->fimJanela) {
-					a->e.y += a->e.y + a->e.altura;
+	while (gameData.nNavesNormais > 0) {
+		Sleep(n[0].velocidade);
+		for (int i = 0; i < gameData.nNavesNormais; i++) {
+			if (n[i].vida > 0) {
+				int x = n[i].e.x;
+				int y = n[i].e.y;
+				if (n[i].fimJanela) {
+					y = y + n[i].e.altura;
 				}
-				else if (a->isLeft)
-					a->e.x = a->e.x - 1;
-				else a->e.x = a->e.x + 1;
+				else if (n[i].isLeft)
+					x = x - 1;
+				else x = x + 1;
+
+				//_tprintf(TEXT("\n[THREAD] Nave[%d , %d]\n"),x, y);
+				
+				if (CanMoveInvader(x, y)) {
+					n[i].e.y = y;
+					n[i].e.x = x;
+				}
+				
 			}
 
 		}
-
 	}
 	return 0;
 }
 
 DWORD WINAPI thread_esquiva(LPVOID nave) {
-	Nave *b;
-	b = (Nave *)nave;
 
-	while (b->vida > 0) {
-		Sleep(b->velocidade);
+	
 
-		//random e se sitio esta disponivel
-
-
+	Nave *n = gameData.navesesquivas;
+	
+	while (gameData.nNavesEsquivas > 0) {
+//		Sleep(n->velocidade);
+		//TODO-> Meter movimento random e verificações
 
 	}
+	return 0;
+}
 
+bool CanMoveInvader(int x, int y) {
+	for (int i = 0; i < gameData.nNavesNormais; i++) {
+		//TODO-> Verifica se determinada posição esta ocupada
+	}
+	return TRUE;
 }
 
 DWORD WINAPI thread_Jogo(LPVOID jogo) {
 	pJogo j;
 	j = (pJogo)&gameData;
 
-	Nave nave;
-	switch (j->dificuldade) {
+	HANDLE hThreadNaveEsquiva, hThreadNaveBasica;
 
-		case 1:
-			nave.quantidade = 10;
-			break;
-		case 2:
-			nave.quantidade = 20;
-			break;
-		case 3:
-			nave.quantidade = 30;
-			break;
+	switch (j->dificuldade)
+	{
+	case 1:
+		j->nNavesNormais = 10;
+		j->nNavesEsquivas = 5;
+		gameData.navesnormais = (Nave *)malloc(sizeof(Nave)*j->nNavesNormais);
+		gameData.navesesquivas = (Nave *)malloc(sizeof(Nave)*j->nNavesEsquivas);
+		break;
+	case 2:
+		j->nNavesNormais = 20;
+		j->nNavesEsquivas = 10;
+
+		gameData.navesnormais = (Nave *)malloc(sizeof(Nave)*j->nNavesNormais);
+		gameData.navesesquivas = (Nave *)malloc(sizeof(Nave)*j->nNavesEsquivas);
+		break;
+	case 3:
+		j->nNavesNormais = 30;
+		j->nNavesEsquivas = 15;
+
+		gameData.navesnormais = (Nave *)malloc(sizeof(Nave)*j->nNavesNormais);
+		gameData.navesesquivas = (Nave *)malloc(sizeof(Nave)*j->nNavesEsquivas);
+		break;
+	default:
+		break; 
+	}
+
+	Nave *nNormal = gameData.navesnormais;
+	Nave *nEsquiva = gameData.navesesquivas;
+		
+	for (int i = 0; i < j->nNavesNormais; i++) {
+		nNormal[i].velocidade = 1000 - 100*(j->dificuldade - 1);
+		nNormal[i].vida = 1;
+		nNormal[i].e.altura = 3;
+		nNormal[i].e.largura = 3;
+		if (i > j->nNavesEsquivas / 2)
+			nNormal[i].e.y = 6;
+		else 
+			nNormal[i].e.y = 9;
+		nNormal[i].e.x = 4 * i;
+	}
+	for (int i = 0; i < j->nNavesEsquivas; i++) {
+		nEsquiva[i].e.altura = 3;
+		nEsquiva[i].e.largura = 3;
+		if (i > j->nNavesEsquivas/2)
+			nEsquiva[i].e.y = 0;
+		else
+			nEsquiva[i].e.y = 3;
+		nEsquiva[i].e.x = 4 * i;
+		nEsquiva[i].velocidade = (1000 - 100 * (j->dificuldade - 1))*1.1;
+		nEsquiva[i].vida = 3;
+
 	}
 	
+	hThreadNaveEsquiva = CreateThread(NULL, 0, thread_esquiva, NULL, 0, 0); //inicia thread para naves esquivas
+	if (hThreadNaveEsquiva == NULL) {
+		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
+		return 0;
+	}
+
+	hThreadNaveBasica = CreateThread(NULL, 0, thread_basica, NULL, 0, 0); //inicia thread para naves basicas
+	if (hThreadNaveBasica == NULL) {
+		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
+		return 0;
+	}
+	
+	//TODO-> TRATAMENTO DE JOGO, POWERUPS E TIROS ATACANTES
+
+	return 0;
+
 }
