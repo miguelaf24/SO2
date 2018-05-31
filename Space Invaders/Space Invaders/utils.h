@@ -57,7 +57,8 @@ typedef struct {
 	Player player[5];
 	int disparo;
 	int dificuldade;
-	
+	int maxX; 
+	int maxY;
 }Jogo, *pJogo;
 
 typedef struct {

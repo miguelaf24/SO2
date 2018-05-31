@@ -1,4 +1,6 @@
 #include "utils.h"
+
+#pragma region Variáveis Globais
 BOOL(*StartBuff)(void);
 Command(*GetMSG)();
 BOOL(*OpenGame)(void);
@@ -8,20 +10,20 @@ pBuff(*rbuff)();
 HMODULE hDLL;
 HANDLE hThreadListener, eGameUpdate, mGameAcess, hThreadGame;
 //Jogo gameData;
-
-
 HANDLE hGame;
 pJogo pGameView;
+#pragma endregion
 
-//Threads
+#pragma region Thread
 DWORD WINAPI ReadBufferThread(LPVOID params);
 //DWORD WINAPI thread_Jogo(LPVOID jogo);
+#pragma endregion
 
-
-//FUNCTIONS
+#pragma region Functions
 void TrataComando(Command temp);
 bool CanMoveInvader(int x, int y);
 void start_Jogo();
+#pragma endregion
 
 int _tmain(int argc, LPTSTR argv[]) {
 	int resp;
@@ -140,6 +142,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 	return 0;
 }
 
+#pragma region Buffer
 DWORD WINAPI ReadBufferThread(LPVOID params) {
 	
 	Command temp;
@@ -169,10 +172,114 @@ void TrataComando(Command temp) {
 	ReleaseMutex(mGameAcess); //liberta mutex
 	
 }
+#pragma endregion
 
+#pragma region Jogo
 
+#pragma region Start
 
+void start_Jogo() {
+	Jogo j;
+	
 
+	HANDLE hThreadNaveEsquiva, hThreadNaveBasica;
+	WaitForSingleObject(mGameAcess, INFINITE);
+	
+
+	#pragma region Mapa
+	pGameView->maxX = 50;
+	pGameView->maxX = 200;
+	#pragma endregion
+	
+	#pragma region Dificuldade
+	switch (pGameView->dificuldade)
+	{
+	case 1:
+		pGameView->nNavesNormais = 10;
+		pGameView->nNavesEsquivas = 5;
+		break;
+	case 2:
+		pGameView->nNavesNormais = 20;
+		pGameView->nNavesEsquivas = 10;
+		break;
+	case 3:
+		pGameView->nNavesNormais = 30;
+		pGameView->nNavesEsquivas = 15;
+		break;
+	default:
+		break; 
+	}
+	#pragma endregion
+	
+	#pragma region Naves Normais
+	for (int i = 0; i < pGameView->nNavesNormais; i++) {
+		pGameView->navesnormais[i].velocidade = 1000 - 100*(pGameView->dificuldade - 1);
+		pGameView->navesnormais[i].vida = 1;
+		pGameView->navesnormais[i].e.altura = 3;
+		pGameView->navesnormais[i].e.largura = 3;
+		if (i > pGameView->nNavesEsquivas / 2)
+			pGameView->navesnormais[i].e.y = 6;
+		else 
+			pGameView->navesnormais[i].e.y = 9;
+		pGameView->navesnormais[i].e.x = 4 * i;	
+	}
+
+	for (int i = pGameView->nNavesNormais; i < 30; i++) 
+		pGameView->navesnormais[i].vida = 0;
+	#pragma endregion
+	
+	#pragma region Naves Esquivas
+	for (int i = 0; i < pGameView->nNavesEsquivas; i++) {
+		pGameView->navesesquivas[i].e.altura = 3;
+		pGameView->navesesquivas[i].e.largura = 3;
+		if (i > pGameView->nNavesEsquivas/2)
+			pGameView->navesesquivas[i].e.y = 0;
+		else
+			pGameView->navesesquivas[i].e.y = 3;
+		pGameView->navesesquivas[i].e.x = 4 * i;
+		pGameView->navesesquivas[i].velocidade = (1000 - 100 * (pGameView->dificuldade - 1))*1.1;
+		pGameView->navesesquivas[i].vida = 3;
+	}
+	
+	for (int i = pGameView->nNavesEsquivas; i < 30; i++)
+		pGameView->navesesquivas[i].vida = 0;
+	#pragma endregion
+
+	#pragma region Memória Partilhada
+
+	//actualiza memoria partilhada
+	SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
+
+    ResetEvent(eGameUpdate);//fecha a sinalização do evento
+		//CopyMemory(pGameView, &j, sizeof(Jogo));
+	ReleaseMutex(mGameAcess);
+
+	#pragma endregion
+	
+	#pragma region Create Threads
+
+	hThreadNaveEsquiva = CreateThread(NULL, 0, thread_esquiva, NULL, 0, 0); //inicia thread para naves esquivas
+	if (hThreadNaveEsquiva == NULL) {
+		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
+		return;
+	}
+
+	hThreadNaveBasica = CreateThread(NULL, 0, thread_basica, NULL, 0, 0); //inicia thread para naves basicas
+	if (hThreadNaveBasica == NULL) {
+		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
+		return;
+	}
+	
+	#pragma endregion
+	
+	//TODO-> TRATAMENTO DE JOGO, POWERUPS E TIROS ATACANTES
+
+	return;
+}
+
+#pragma endregion
+
+#pragma region Naves
 DWORD WINAPI thread_basica(LPVOID nave) {
 
 
@@ -185,12 +292,22 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 			if (pGameView->navesnormais[i].vida > 0) {
 				int x = pGameView->navesnormais[i].e.x;
 				int y = pGameView->navesnormais[i].e.y;
-				if (pGameView->navesnormais[i].fimJanela) {
-					y = y + pGameView->navesnormais[i].e.altura;
+				if (pGameView->navesnormais[i].isLeft) {
+					if (x == 0) {
+						y = y + pGameView->navesnormais[i].e.altura;
+						pGameView->navesnormais[i].isLeft = false;
+					}
+					else
+						x = x - 1;
 				}
-				else if (pGameView->navesnormais[i].isLeft)
-					x = x - 1;
-				else x = x + 1;
+				else {
+					if (x == pGameView->maxX) {
+						y = y + pGameView->navesnormais[i].e.altura;
+						pGameView->navesnormais[i].isLeft = true;
+					}
+					else
+						x = x + 1;
+				}
 
 				
 				
@@ -234,85 +351,6 @@ bool CanMoveInvader(int x, int y) {
 	//}
 	return TRUE;
 }
+#pragma endregion
 
-void start_Jogo() {
-	Jogo j;
-	
-
-	HANDLE hThreadNaveEsquiva, hThreadNaveBasica;
-	WaitForSingleObject(mGameAcess, INFINITE);
-	
-	
-	switch (pGameView->dificuldade)
-	{
-	case 1:
-		pGameView->nNavesNormais = 10;
-		pGameView->nNavesEsquivas = 5;
-		break;
-	case 2:
-		pGameView->nNavesNormais = 20;
-		pGameView->nNavesEsquivas = 10;
-		break;
-	case 3:
-		pGameView->nNavesNormais = 30;
-		pGameView->nNavesEsquivas = 15;
-		break;
-	default:
-		break; 
-	}
-
-
-		
-	for (int i = 0; i < pGameView->nNavesNormais; i++) {
-		pGameView->navesnormais[i].velocidade = 1000 - 100*(pGameView->dificuldade - 1);
-		pGameView->navesnormais[i].vida = 1;
-		pGameView->navesnormais[i].e.altura = 3;
-		pGameView->navesnormais[i].e.largura = 3;
-		if (i > pGameView->nNavesEsquivas / 2)
-			pGameView->navesnormais[i].e.y = 6;
-		else 
-			pGameView->navesnormais[i].e.y = 9;
-		pGameView->navesnormais[i].e.x = 4 * i;	
-	}
-	for (int i = pGameView->nNavesNormais; i < 30; i++) 
-		pGameView->navesnormais[i].vida = 0;
-
-	for (int i = 0; i < pGameView->nNavesEsquivas; i++) {
-		pGameView->navesesquivas[i].e.altura = 3;
-		pGameView->navesesquivas[i].e.largura = 3;
-		if (i > pGameView->nNavesEsquivas/2)
-			pGameView->navesesquivas[i].e.y = 0;
-		else
-			pGameView->navesesquivas[i].e.y = 3;
-		pGameView->navesesquivas[i].e.x = 4 * i;
-		pGameView->navesesquivas[i].velocidade = (1000 - 100 * (pGameView->dificuldade - 1))*1.1;
-		pGameView->navesesquivas[i].vida = 3;
-	}
-	for (int i = pGameView->nNavesEsquivas; i < 30; i++)
-		pGameView->navesesquivas[i].vida = 0;
-
-	//actualiza memoria partilhada
-	SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
-
-    ResetEvent(eGameUpdate);//fecha a sinalização do evento
-		//CopyMemory(pGameView, &j, sizeof(Jogo));
-	ReleaseMutex(mGameAcess);
-
-	
-	hThreadNaveEsquiva = CreateThread(NULL, 0, thread_esquiva, NULL, 0, 0); //inicia thread para naves esquivas
-	if (hThreadNaveEsquiva == NULL) {
-		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
-		return;
-	}
-
-	hThreadNaveBasica = CreateThread(NULL, 0, thread_basica, NULL, 0, 0); //inicia thread para naves basicas
-	if (hThreadNaveBasica == NULL) {
-		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
-		return;
-	}
-	
-	//TODO-> TRATAMENTO DE JOGO, POWERUPS E TIROS ATACANTES
-
-	return;
-
-}
+#pragma endregion
