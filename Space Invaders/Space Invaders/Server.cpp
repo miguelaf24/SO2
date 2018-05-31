@@ -16,12 +16,16 @@ pJogo pGameView;
 
 #pragma region Thread
 DWORD WINAPI ReadBufferThread(LPVOID params);
+DWORD WINAPI thread_basica(LPVOID nave);
+DWORD WINAPI thread_esquiva(LPVOID nave);
+
 //DWORD WINAPI thread_Jogo(LPVOID jogo);
 #pragma endregion
 
 #pragma region Functions
 void TrataComando(Command temp);
-bool CanMoveInvader(int x, int y);
+bool CanMoveInvader(int x, int y, TCHAR id[]);
+bool verifyID(TCHAR id[], TCHAR id2[]);
 void start_Jogo();
 bool CanMoveInvader(int x, int y, TCHAR id[]);
 #pragma endregion
@@ -189,7 +193,7 @@ void start_Jogo() {
 
 	#pragma region Mapa
 	pGameView->maxX = 50;
-	pGameView->maxX = 200;
+	pGameView->maxY = 200;
 	#pragma endregion
 	
 	#pragma region Dificuldade
@@ -313,7 +317,7 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 
 				
 				
-				if (CanMoveInvader(x, y)) {
+				if (CanMoveInvader(x, y, pGameView->navesnormais[i].e.id)) {
 					pGameView->navesnormais[i].e.y = y;
 					pGameView->navesnormais[i].e.x = x;
 				}
