@@ -22,6 +22,7 @@ struct Elemento {
 	int y;
 	int largura;
 	int altura;
+	TCHAR id[3];
 };
 
 typedef struct {
@@ -50,8 +51,10 @@ typedef struct {
 
 typedef struct {
 	int nNavesNormais;
+	int nNormaisVivas;
 	Nave navesnormais[30];
 	int nNavesEsquivas;
+	int nEsquivasVivas;
 	Nave navesesquivas[30];
 	int nPlayers;
 	Player player[5];

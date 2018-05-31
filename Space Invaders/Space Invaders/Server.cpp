@@ -23,6 +23,7 @@ DWORD WINAPI ReadBufferThread(LPVOID params);
 void TrataComando(Command temp);
 bool CanMoveInvader(int x, int y);
 void start_Jogo();
+bool CanMoveInvader(int x, int y, TCHAR id[]);
 #pragma endregion
 
 int _tmain(int argc, LPTSTR argv[]) {
@@ -217,6 +218,9 @@ void start_Jogo() {
 		pGameView->navesnormais[i].vida = 1;
 		pGameView->navesnormais[i].e.altura = 3;
 		pGameView->navesnormais[i].e.largura = 3;
+		pGameView->navesnormais[i].e.id[0] = 'N';
+		pGameView->navesnormais[i].e.id[1] = (i+1)/10 + '0';
+		pGameView->navesnormais[i].e.id[2] = (i+1)%10 + '0';
 		if (i > pGameView->nNavesEsquivas / 2)
 			pGameView->navesnormais[i].e.y = 6;
 		else 
@@ -282,8 +286,6 @@ void start_Jogo() {
 #pragma region Naves
 DWORD WINAPI thread_basica(LPVOID nave) {
 
-
-
 	while (pGameView->nNavesNormais > 0) {
 		
 		Sleep(pGameView->navesnormais->velocidade);
@@ -345,12 +347,25 @@ DWORD WINAPI thread_esquiva(LPVOID nave) {
 	return 0;
 }
 
-bool CanMoveInvader(int x, int y) {
-//	for (int i = 0; i < gameData.nNavesNormais; i++) {
-		//TODO-> Verifica se determinada posição esta ocupada
-	//}
-	return TRUE;
+bool CanMoveInvader(int x, int y, TCHAR id[]) {
+	for (int i = 0; i < pGameView->nNavesNormais; i++) {
+		if (!verifyID(id, pGameView->navesnormais[i].e.id)) {
+			if (x >= pGameView->navesnormais[i].e.x && x <= pGameView->navesnormais[i].e.x + pGameView->navesnormais[i].e.largura)
+				if (y >= pGameView->navesnormais[i].e.y && x <= pGameView->navesnormais[i].e.y + pGameView->navesnormais[i].e.altura)
+					return false;
+		}
+	}
+	return false;
 }
+
+bool verifyID(TCHAR id[], TCHAR id2[]) {
+	for (int i = 0; i < 3; i++) {
+		if (id[i] != id2[i])
+			return false;
+	}
+	return true;
+}
+
 #pragma endregion
 
 #pragma endregion
