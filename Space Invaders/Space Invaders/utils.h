@@ -31,7 +31,7 @@ typedef struct {
 	int velocidade;
 	int i_desparo;
 	struct Elemento e;
-}Nave, *pNave;
+}Nave;
 
 typedef struct {
 	TCHAR name;
@@ -46,15 +46,15 @@ typedef struct {
 	Nave nave;
 	int points;
 	int nvidas;
-}Player, *pPlayer;
+}Player;
 
 typedef struct {
 	int nNavesNormais;
-	pNave navesnormais;
+	Nave navesnormais[30];
 	int nNavesEsquivas;
-	pNave navesesquivas;
+	Nave navesesquivas[30];
 	int nPlayers;
-	pPlayer player;
+	Player player[5];
 	int disparo;
 	int dificuldade;
 	

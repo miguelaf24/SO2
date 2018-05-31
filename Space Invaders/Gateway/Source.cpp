@@ -7,7 +7,7 @@ BOOL(*wrtMSG)(Command);
 pBuff(*rbuff)();
 pJogo(*getGame)();
 
-HANDLE mGameAcess, hGameUpdateThread;
+HANDLE eGameAcess, hGameUpdateThread;
 //THREADs
 DWORD WINAPI GameUpdateThread(LPVOID params);
 
@@ -56,26 +56,33 @@ int _tmain(int argc, LPTSTR argv[]) {
 			_tprintf(TEXT("Erro: não foi possível escrever do buffer -> %d\n"), GetLastError());
 			return 0;
 		}
-
-	} while (TRUE);
-
-
+		
+	} while (1);
+	_tprintf(TEXT("FIM gat\n"));
+	return 0;
 }
 
 DWORD WINAPI GameUpdateThread(LPVOID params) {
-	mGameAcess = OpenEvent(EVENT_ALL_ACCESS, TRUE, _T("GameUpdateEvent"));
+	eGameAcess = OpenEvent(EVENT_ALL_ACCESS, TRUE, _T("GameUpdateEvent"));
 	pJogo gamedata=NULL;
 	
-	while (1) {
-		WaitForSingleObject(mGameAcess, INFINITE);
-		
+	do{
+		WaitForSingleObject(eGameAcess, INFINITE);
+		_tprintf(TEXT("GameUpdateThread\n"));
+
 		gamedata=getGame();
 		
 		//envia actualização a todos os players
 		_tprintf(TEXT("Read Gamedata, dif= %d\n"), gamedata->dificuldade);
+		_tprintf(TEXT("Read Gamedata, nnavesnormais= %d\n"), gamedata->nNavesNormais);
+		_tprintf(TEXT("Read Gamedata, nnavesesquivas= %d\n"), gamedata->nNavesEsquivas);
+		_tprintf(TEXT("Read Gamedata, navenormalX= %d\n"), gamedata->navesnormais[0].e.x);
+	
 
-	}
+		
+	} while (1);
 
+	_tprintf(TEXT("FIM GameUpdateThread\n"));
 	return 0;
 
 	
