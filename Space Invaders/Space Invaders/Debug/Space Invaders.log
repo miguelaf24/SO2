@@ -1,4 +1,1 @@
-﻿  Server.cpp
-c:\users\migue\source\repos\space invaders\so2\space invaders\space invaders\server.cpp(248): warning C4244: '=': conversion from 'double' to 'int', possible loss of data
-c:\users\migue\source\repos\space invaders\so2\space invaders\space invaders\server.cpp(187): warning C4101: 'j': unreferenced local variable
-  Space Invaders.vcxproj -> C:\Users\migue\source\repos\Space Invaders\SO2\Space Invaders\Debug\Server.exe
+﻿  Space Invaders.vcxproj -> C:\Users\Bruno Santos\Documents\GitHub\SO2\Space Invaders\Debug\Server.exe
