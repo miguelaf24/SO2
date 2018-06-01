@@ -78,23 +78,23 @@ void broadcast(Jogo gamedata) {
 	HANDLE IOReady = CreateEvent(NULL, TRUE, FALSE, NULL);
 	BOOL ret;
 	DWORD n;
-
+	message msg;
+	msg.jogo = gamedata;
 	for (int i = 0; i < 5; i++) {
 		if (hPlayer[i] != 0) {
-
+			msg.idPlayer = i + 1;
 			ZeroMemory(&Ov, sizeof(Ov));
 			ResetEvent(IOReady);
 			Ov.hEvent = IOReady;
 
-			ret = WriteFile(hPlayer[i], &gamedata, sizeof(Jogo), &n, &Ov);
+			ret = WriteFile(hPlayer[i], &msg, MSGSIZE, &n, &Ov);
 
 			WaitForSingleObject(IOReady, INFINITE);
 
 			GetOverlappedResult(hPlayer[i], &Ov, &n, FALSE);
 
-			if (n < sizeof(Jogo)) {
-				_tprintf(TEXT("[ERRO] Escrever no pipe! (WriteFile)\n"));
-				exit(-1);
+			if (n < MSGSIZE) {
+				_tprintf(TEXT("[ERRO] Nao concluiu escrita! (WriteFile)\n"));
 			}
 			else {
 				_tprintf(TEXT("[GATEWAY] Enviei %d bytes ao leitor...(WriteFile)\n"), n);
@@ -140,7 +140,7 @@ DWORD WINAPI connect_Thread(LPVOID data) {
 
 	while (1) {
 		_tprintf(TEXT("[DEBUG] Criar uma cópia do pipe '%s' ... (CreateNamedPipe)\n"), PIPE_NAME);
-		p = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, PIPE_UNLIMITED_INSTANCES, sizeof(Jogo), sizeof(Command), 1000, NULL);
+		p = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, PIPE_UNLIMITED_INSTANCES, PIPEBUFFSIZE, PIPEBUFFSIZE, 1000, NULL);
 		if (p == INVALID_HANDLE_VALUE) { _tprintf(TEXT("[ERRO] criar pipe! (CreateNamedPipe\n")); exit(-1); }
 
 

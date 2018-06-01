@@ -58,7 +58,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 
 
 DWORD WINAPI thread_read(LPVOID data) {
-	Jogo j;
+	message msg;
 	BOOL ret=false;
 	DWORD n;
 	HANDLE IOReady;
@@ -69,7 +69,7 @@ DWORD WINAPI thread_read(LPVOID data) {
 		ResetEvent(IOReady);
 		Ov.hEvent = IOReady;
 
-		ret = ReadFile(hPipe, &j, sizeof(Jogo), &n, &Ov);
+		ret = ReadFile(hPipe, &msg, MSGSIZE, &n, &Ov);
 		WaitForSingleObject(IOReady, INFINITE);
 		 GetOverlappedResult(hPipe, &Ov, &n, FALSE);
 
@@ -78,13 +78,13 @@ DWORD WINAPI thread_read(LPVOID data) {
 			_tprintf(TEXT("[ERROR] READING %d %d... threadRead \n"), ret, n);
 			continue;
 		}*/
-		if (n<sizeof(Jogo)) {
+		if (n<MSGSIZE) {
 			_tprintf(TEXT("[ERROR] Less bites received %d %d... (ReadFile)\n"), ret, n);
-			break;
+			//break;
 		}
-
-
-		_tprintf(TEXT("[DEBUG] Recebi %d bytes, jogodif: %d\n"), n, j.dificuldade);
+		else {
+			_tprintf(TEXT("[DEBUG] Recebi %d bytes, jogodif: %d\n"), n, msg.jogo.dificuldade);
+		}
 	}
 	return 0;
 }

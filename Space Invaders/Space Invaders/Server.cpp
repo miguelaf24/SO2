@@ -184,7 +184,7 @@ void TrataComando(Command temp) {
 #pragma region Start
 
 void start_Jogo() {
-	Jogo j;
+	
 	
 
 	HANDLE hThreadNaveEsquiva, hThreadNaveBasica;
@@ -222,9 +222,9 @@ void start_Jogo() {
 		pGameView->navesnormais[i].vida = 1;
 		pGameView->navesnormais[i].e.altura = 3;
 		pGameView->navesnormais[i].e.largura = 3;
-		pGameView->navesnormais[i].e.id[0] = 'N';
+/*		pGameView->navesnormais[i].e.id[0] = 'N';
 		pGameView->navesnormais[i].e.id[1] = (i+1)/10 + '0';
-		pGameView->navesnormais[i].e.id[2] = (i+1)%10 + '0';
+		pGameView->navesnormais[i].e.id[2] = (i+1)%10 + '0';*/
 		if (i > pGameView->nNavesEsquivas / 2)
 			pGameView->navesnormais[i].e.y = 6;
 		else 
@@ -292,7 +292,7 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 
 	while (pGameView->nNavesNormais > 0) {
 		
-		Sleep(pGameView->navesnormais->velocidade);
+		Sleep((DWORD)pGameView->navesnormais->velocidade);
 		WaitForSingleObject(mGameAcess, INFINITE);
 		for (int i = 0; i < pGameView->nNavesNormais; i++) {
 			if (pGameView->navesnormais[i].vida > 0) {
@@ -317,10 +317,10 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 
 				
 				
-				if (CanMoveInvader(x, y, pGameView->navesnormais[i].e.id)) {
+				/*if (CanMoveInvader(x, y, pGameView->navesnormais[i].e.id)) {
 					pGameView->navesnormais[i].e.y = y;
 					pGameView->navesnormais[i].e.x = x;
-				}
+				}*/
 				
 			}
 
@@ -353,11 +353,11 @@ DWORD WINAPI thread_esquiva(LPVOID nave) {
 
 bool CanMoveInvader(int x, int y, TCHAR id[]) {
 	for (int i = 0; i < pGameView->nNavesNormais; i++) {
-		if (!verifyID(id, pGameView->navesnormais[i].e.id)) {
+		//if (!verifyID(id, pGameView->navesnormais[i].e.id)) {
 			if (x >= pGameView->navesnormais[i].e.x && x <= pGameView->navesnormais[i].e.x + pGameView->navesnormais[i].e.largura)
 				if (y >= pGameView->navesnormais[i].e.y && x <= pGameView->navesnormais[i].e.y + pGameView->navesnormais[i].e.altura)
 					return false;
-		}
+		//}
 	}
 	return false;
 }
