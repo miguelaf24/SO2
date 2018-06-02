@@ -9,6 +9,7 @@ BOOL(*wrtMSG)(Command);
 pBuff(*rbuff)();
 Jogo(*getGame)();
 
+HMODULE hDLL;
 HANDLE eGameAcess, hGameUpdateThread, hPlayer[5], hConnectThread;
 //THREADs
 DWORD WINAPI GameUpdateThread(LPVOID params);
@@ -23,7 +24,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 	srand((int)time(NULL));
 
 	//DLL LOAD
-	HMODULE hDLL = LoadLibrary(_T("SpaceDLL"));
+	hDLL = LoadLibrary(_T("SpaceDLL"));
 
 	if (hDLL == NULL) {
 		_tprintf(_T("(DEBUG)DLL:Erro-> Loading DLL\n"));
@@ -34,17 +35,16 @@ int _tmain(int argc, LPTSTR argv[]) {
 	OpenGame = (BOOL(*)())GetProcAddress(hDLL, "openGameMemory");
 	OpenBuff = (BOOL(*)())GetProcAddress(hDLL, "openBuffer");
 	getGame = (Jogo(*)())GetProcAddress(hDLL, "getGame");
-	wrtMSG = (BOOL(*)(Command))GetProcAddress(hDLL, "WriteBuffer");
 	rbuff = (pBuff(*)())GetProcAddress(hDLL, "returnBuff");
 
 	OpenGame(); //carrega jogo da memoria
 	OpenBuff(); //carrega buffer da memoria
 
 	hConnectThread = CreateThread(NULL, 0, connect_Thread, NULL, 0, 0);
-	if (hConnectThread == NULL) {
-		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting game update thread\n %d  \n"), GetLastError());
-		return 0;
-	}
+		if (hConnectThread == NULL) {
+			_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting game update thread\n %d  \n"), GetLastError());
+			return 0;
+		}
 
 	hGameUpdateThread = CreateThread(NULL, 0, GameUpdateThread, NULL, 0, 0);
 	if (hGameUpdateThread == NULL) {
@@ -52,22 +52,9 @@ int _tmain(int argc, LPTSTR argv[]) {
 		return 0;
 	}
 
-	Command cmd;
 
-	_tprintf(TEXT("TESTE COMANDOS GATEWAY \n"));
-	do {
-		_tprintf(TEXT("Insira id comando: "));
-		_tscanf_s(TEXT("%d"), &cmd.id);
-		_tprintf(TEXT("\nInsira valor do comando: "));
-		_tscanf_s(TEXT("%d"), &cmd.cmd);
 
-		if (!wrtMSG(cmd)) {
-			_tprintf(TEXT("Erro: não foi possível escrever do buffer -> %d\n"), GetLastError());
-			return 0;
-		}
 
-	} while (1);
-	
 
 	WaitForSingleObject(hGameUpdateThread, INFINITE);
 	return 0;
@@ -115,7 +102,7 @@ DWORD WINAPI GameUpdateThread(LPVOID params) {
 		gamedata = getGame();
 
 		broadcast(gamedata);//envia actualização a todos os players
-		
+
 		_tprintf(TEXT("Read Gamedata, navenormalX= %d\n"), gamedata.navesnormais[14].e.x);
 		_tprintf(TEXT("Read Gamedata, navenormalY= %d\n"), gamedata.navesnormais[14].e.y);
 
@@ -174,6 +161,7 @@ DWORD WINAPI thread_read(LPVOID data) {
 	BOOL ret;
 	HANDLE hPipeL = (HANDLE)data;
 	HANDLE IOReady;
+	wrtMSG = (BOOL(*)(Command))GetProcAddress(hDLL, "WriteBuffer");
 
 
 	OVERLAPPED Ov;
@@ -192,7 +180,12 @@ DWORD WINAPI thread_read(LPVOID data) {
 			_tprintf(TEXT("[ERRO] %d %d... (ReadFile)\n"), ret, n);
 			break;
 		}
-		_tprintf(TEXT("[GATEWAY] Recebi %d bytes, cmdnum: '%d'... (ReadFile)\n"), n, c.cmd);
+		else {
+			if (!wrtMSG(c)) {
+				_tprintf(TEXT("Erro: não foi possível escrever do buffer -> %d\n"), GetLastError());
+				return 0;
+			}
+		}
 	}
 
 	return 0;
