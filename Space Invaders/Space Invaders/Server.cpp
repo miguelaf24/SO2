@@ -12,6 +12,8 @@ HANDLE hThreadListener, eGameUpdate, mGameAcess, hThreadGame;
 //Jogo gameData;
 HANDLE hGame;
 pJogo pGameView;
+
+char Pmapa[51][201];
 #pragma endregion
 
 #pragma region Thread
@@ -24,10 +26,9 @@ DWORD WINAPI thread_esquiva(LPVOID nave);
 
 #pragma region Functions
 void TrataComando(Command temp);
-bool CanMoveInvader(int x, int y, TCHAR id[]);
-bool verifyID(TCHAR id[], TCHAR id2[]);
+bool CanMoveInvader(int x, int y, int xl, int ya, char id[]);
+bool verifyID(char id[], char id2[]);
 void start_Jogo();
-bool CanMoveInvader(int x, int y, TCHAR id[]);
 #pragma endregion
 
 int _tmain(int argc, LPTSTR argv[]) {
@@ -171,6 +172,7 @@ void TrataComando(Command temp) {
 	//trata de tudo o que tem a ver com o comando;
 	//TODO bla bla bla
 
+
 	SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
 	ResetEvent(eGameUpdate);//fecha a sinalização do evento
 
@@ -217,19 +219,27 @@ void start_Jogo() {
 	#pragma endregion
 	
 	#pragma region Naves Normais
+
+	int auxX = 0;
+	int auxY = 6;
+	bool auxLeft = true;
 	for (int i = 0; i < pGameView->nNavesNormais; i++) {
 		pGameView->navesnormais[i].velocidade = 1000 - 100*(pGameView->dificuldade - 1);
 		pGameView->navesnormais[i].vida = 1;
 		pGameView->navesnormais[i].e.altura = 3;
 		pGameView->navesnormais[i].e.largura = 3;
-/*		pGameView->navesnormais[i].e.id[0] = 'N';
+		pGameView->navesnormais[i].e.id[0] = 'N';
 		pGameView->navesnormais[i].e.id[1] = (i+1)/10 + '0';
-		pGameView->navesnormais[i].e.id[2] = (i+1)%10 + '0';*/
-		if (i > pGameView->nNavesEsquivas / 2)
-			pGameView->navesnormais[i].e.y = 6;
-		else 
-			pGameView->navesnormais[i].e.y = 9;
-		pGameView->navesnormais[i].e.x = 4 * i;	
+		pGameView->navesnormais[i].e.id[2] = (i+1)%10 + '0';
+		auxX += 4;
+		if (auxX + pGameView->navesnormais[i].e.largura >= pGameView->maxX ) {
+			auxY += 4;
+			auxX = 4;
+			auxLeft = !auxLeft;
+		}
+		pGameView->navesnormais[i].e.y = auxY;
+		pGameView->navesnormais[i].e.x = auxX;	
+		pGameView->navesnormais[i].isLeft = auxLeft;
 	}
 
 	for (int i = pGameView->nNavesNormais; i < 30; i++) 
@@ -238,8 +248,8 @@ void start_Jogo() {
 	
 	#pragma region Naves Esquivas
 	for (int i = 0; i < pGameView->nNavesEsquivas; i++) {
-		pGameView->navesesquivas[i].e.altura = 3;
-		pGameView->navesesquivas[i].e.largura = 3;
+		pGameView->navesesquivas[i].e.altura = 1;
+		pGameView->navesesquivas[i].e.largura = 1;
 		if (i > pGameView->nNavesEsquivas/2)
 			pGameView->navesesquivas[i].e.y = 0;
 		else
@@ -292,23 +302,24 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 
 	while (pGameView->nNavesNormais > 0) {
 		
-		Sleep((DWORD)pGameView->navesnormais->velocidade);
+		Sleep((DWORD)pGameView->navesnormais->velocidade );
 		WaitForSingleObject(mGameAcess, INFINITE);
-		for (int i = 0; i < pGameView->nNavesNormais; i++) {
+		for (int i = pGameView->nNavesNormais - 1; i >= 0 ; i--) {
 			if (pGameView->navesnormais[i].vida > 0) {
 				int x = pGameView->navesnormais[i].e.x;
 				int y = pGameView->navesnormais[i].e.y;
 				if (pGameView->navesnormais[i].isLeft) {
 					if (x == 0) {
-						y = y + pGameView->navesnormais[i].e.altura;
+
+						y = y + pGameView->navesnormais[i].e.altura + 1;
 						pGameView->navesnormais[i].isLeft = false;
 					}
 					else
 						x = x - 1;
 				}
 				else {
-					if (x == pGameView->maxX) {
-						y = y + pGameView->navesnormais[i].e.altura;
+					if (x + pGameView->navesnormais[i].e.largura == pGameView->maxX ) {
+						y = y + pGameView->navesnormais[i].e.altura + 1;
 						pGameView->navesnormais[i].isLeft = true;
 					}
 					else
@@ -317,16 +328,47 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 
 				
 				
-				/*if (CanMoveInvader(x, y, pGameView->navesnormais[i].e.id)) {
+				if (CanMoveInvader(x, y, x + pGameView->navesnormais[i].e.largura, x + pGameView->navesnormais[i].e.altura, pGameView->navesnormais[i].e.id)) {
 					pGameView->navesnormais[i].e.y = y;
 					pGameView->navesnormais[i].e.x = x;
-				}*/
+
+					
+				}
+				else {
+					if (x == 0) {
+						pGameView->navesnormais[i].isLeft = true;
+
+					}
+					if (x + pGameView->navesnormais[i].e.largura == pGameView->maxX) {
+
+						pGameView->navesnormais[i].isLeft = false;
+					}
+				}
 				
 			}
 
 		}
 		ReleaseMutex(mGameAcess);
 		
+		for (int i = 0; i < 51; i++) {
+			for (int j = 0; j < 201; j++) {
+				Pmapa[i][j] = ' ';
+			}
+		}
+		for (int i = 0; i < pGameView->nNavesNormais; i++) {
+			for (int j = pGameView->navesnormais[i].e.x; j < (pGameView->navesnormais[i].e.x + pGameView->navesnormais[i].e.largura); j++) {
+				for (int k = pGameView->navesnormais[i].e.y; k < (pGameView->navesnormais[i].e.y + pGameView->navesnormais[i].e.altura); k++) {
+					Pmapa[j][k] = 'N';
+				}
+			}
+		}
+
+		for (int j = 0; j < 50; j++) {
+			for (int i = 0; i < 51; i++) {
+				_tprintf(TEXT("%c"), Pmapa[i][j]);
+			}
+			_tprintf(TEXT("\n"));
+		}
 		SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
 		//Sleep(100);
 		ResetEvent(eGameUpdate);//fecha a sinalização do evento
@@ -351,22 +393,31 @@ DWORD WINAPI thread_esquiva(LPVOID nave) {
 	return 0;
 }
 
-bool CanMoveInvader(int x, int y, TCHAR id[]) {
+bool CanMoveInvader(int x, int y, int xl, int ya, char id[]) {
 	for (int i = 0; i < pGameView->nNavesNormais; i++) {
-		//if (!verifyID(id, pGameView->navesnormais[i].e.id)) {
-			if (x >= pGameView->navesnormais[i].e.x && x <= pGameView->navesnormais[i].e.x + pGameView->navesnormais[i].e.largura)
-				if (y >= pGameView->navesnormais[i].e.y && x <= pGameView->navesnormais[i].e.y + pGameView->navesnormais[i].e.altura)
+		if (!verifyID(id, pGameView->navesnormais[i].e.id)) {
+			int x2 = pGameView->navesnormais[i].e.x;
+			int x2l = x2 + pGameView->navesnormais[i].e.largura;
+			int y2 = pGameView->navesnormais[i].e.y;
+			int y2a = y2 + pGameView->navesnormais[i].e.altura;
+			if (x >= x2 && x <= x2l && xl >= x2 && xl <= x2l)
+				if (y >= y2 && y <= y2a && ya >= y2 && ya <= y2a) {
+					_tprintf(_T("Dentro - True\n"));
 					return false;
-		//}
+				}
+		}
 	}
-	return false;
+	return true;
 }
 
-bool verifyID(TCHAR id[], TCHAR id2[]) {
+bool verifyID(char id[], char id2[]) {
 	for (int i = 0; i < 3; i++) {
-		if (id[i] != id2[i])
+		if (id[i] != id2[i]) {
+			//_tprintf(_T("ID - False\n"));
 			return false;
+		}
 	}
+	//_tprintf(_T("ID - True\n"));
 	return true;
 }
 

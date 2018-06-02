@@ -24,7 +24,7 @@ struct Elemento {
 	int y;
 	int largura;
 	int altura;
-	TCHAR id;
+	char id[3];
 };
 
 typedef struct {

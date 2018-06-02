@@ -6,3 +6,24 @@ Space Invaders/.vs/Space Invaders/v15/Browse.VC.db
 Space Invaders/.vs/Space Invaders/v15/Solution.VC.db-shm
 Space Invaders/.vs/Space Invaders/v15/Solution.VC.db-wal
 Space Invaders/.vs/Space Invaders/v15/ipch/AutoPCH/4e802d1718cd82d/SERVER.ipch
+Space Invaders/.vs/Space Invaders/v15/.suo
+*.ipch
+*.db
+*.ipch
+*.db-shm
+Space Invaders/.vs/Space Invaders/v15/ipch/AutoPCH/4e802d1718cd82d/SERVER.ipch
+*.db
+Space Invaders/.vs/Space Invaders/v15/.suo
+*.log
+Space Invaders/Client/Debug/Client.log
+*.log
+*.obj
+Space Invaders/Client/Debug/Client.tlog/CL.command.1.tlog
+*.tlog
+*.idb
+*.pdb
+*.exe
+*.ilk
+*.pdb
+Space Invaders/Debug/Gateway.exe
+*.ilk

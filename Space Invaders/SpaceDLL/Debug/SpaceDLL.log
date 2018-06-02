@@ -1,2 +1,4 @@
-﻿  SpaceDLL.cpp
-  SpaceDLL.vcxproj -> C:\Users\Bruno Santos\Documents\GitHub\SO2\Space Invaders\Debug\SpaceDLL.dll
+﻿  stdafx.cpp
+  SpaceDLL.cpp
+     Creating library C:\Users\migue\source\repos\Space Invaders\SO2\Space Invaders\Debug\SpaceDLL.lib and object C:\Users\migue\source\repos\Space Invaders\SO2\Space Invaders\Debug\SpaceDLL.exp
+  SpaceDLL.vcxproj -> C:\Users\migue\source\repos\Space Invaders\SO2\Space Invaders\Debug\SpaceDLL.dll
