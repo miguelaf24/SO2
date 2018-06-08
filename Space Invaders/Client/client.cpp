@@ -5,19 +5,23 @@
 
 //VARIAVEIS GLOBAIS
 HANDLE hPipe;
+TCHAR username[20];
 TCHAR szProgName[] = TEXT("SpaceInvaders Client");
+int PlayerID;
+BOOL Login();
+
 //THREADS
 DWORD WINAPI thread_read(LPVOID data);
-LRESULT CALLBACK TrataEventos(HWND, UINT, WPARAM, LPARAM);
 
 //FUNCS
-BOOL thread_write(Command c);
+BOOL write_command(Command c);
+LRESULT CALLBACK TrataEventos(HWND hWnd, UINT messg, WPARAM wParam, LPARAM lParam);
 
-//GlobalVars
-int idplayer;
 
 //MAIN
 int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nCmdShow) {
+
+
 
 #ifdef UNICODE
 	_setmode(_fileno(stdin), _O_WTEXT);
@@ -56,7 +60,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	// "hbrBackground" = handler para "brush" de pintura do fundo da janela. Devolvido por
 	// "GetStockObject".Neste caso o fundo será branco
 
-
 	if (!RegisterClassEx(&wcApp))//  Registar a classe "wcApp" no Windows
 		return(0);
 
@@ -81,8 +84,6 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	UpdateWindow(hWnd); // Refrescar a janela (Windows envia à janela uma
 
 
-
-	//PIPING
 	_tprintf(TEXT("[DEBUG] Esperar pelo pipe '%s' (WaitNamedPipe)\n"), PIPE_NAME);
 	if (!WaitNamedPipe(PIPE_NAME, NMPWAIT_WAIT_FOREVER)) {
 		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'!\n"), PIPE_NAME);
@@ -102,13 +103,15 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	//ALTERAR MODO DO PIPE
 	DWORD modo = PIPE_READMODE_MESSAGE;
 	SetNamedPipeHandleState(hPipe, &modo, NULL, NULL);
-	//FINALIZA PIPES
 
-	//INICIA THREADS
+	Login();
+
 	HANDLE htTreadr;
-	htTreadr = CreateThread(NULL, 0, thread_read, (LPVOID)hWnd, 0, NULL);
-	//TERMINA THREADS
-
+	htTreadr = CreateThread(NULL, 0, thread_read, NULL, 0, NULL);
+	if (htTreadr == NULL) {
+		_tprintf(TEXT("[ERRO] Inicializar thread! (ThreadLeitura)\n"));
+		return 0;
+	}
 
 
 	while (GetMessage(&lpMsg, NULL, 0, 0)) {
@@ -120,38 +123,65 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 		UpdateWindow(hWnd);
 	}
 
-	//WaitForSingleObject(htTreadr, INFINITE);
 
 	CloseHandle(htTreadr);
 	CloseHandle(hPipe);
-
 	Sleep(200);
 	return((int)lpMsg.wParam); // Retorna sempre o parâmetro wParam da estrutura lpMsg
 }
 
-void start() {
+
+BOOL Login() {
+	DWORD n;
+	BOOL ret;
+	//overlaped I/O
+	HANDLE IOReady;
+	OVERLAPPED Ov;
+
+	strcpy_s(username, _T("zeca"));
+	IOReady = CreateEvent(NULL, TRUE, FALSE, NULL);
+
+	ZeroMemory(&Ov, sizeof(Ov));
+	ResetEvent(IOReady);
+	Ov.hEvent = IOReady;
+
+	WriteFile(hPipe, &username, (sizeof(TCHAR) * 20), &n, &Ov);
+
+	WaitForSingleObject(IOReady, INFINITE);
+	ret = GetOverlappedResult(hPipe, &Ov, &n, FALSE);
+
+	if (!ret) {
+		_tprintf(TEXT("[ERRO] Escrever no pipe!\n"));
+		return false;
+	}
+	_tprintf(TEXT("[DEBUG] Enviei %d bytes ao gateway...\n"), n);
 
 
 
+	ZeroMemory(&Ov, sizeof(Ov));
+	ResetEvent(IOReady);
+	Ov.hEvent = IOReady;
+
+	ret = ReadFile(hPipe, &PlayerID, sizeof(int), &n, &Ov);
+	WaitForSingleObject(IOReady, INFINITE);
+	GetOverlappedResult(hPipe, &Ov, &n, FALSE);
+
+	if (n<sizeof(int)) {
+		_tprintf(TEXT("[ERROR] Less bites received %d %d... (Login)\n"), ret, n);
+		return FALSE;
+	}
 
 
-
-
-
-
-
+	return TRUE;
 }
 
 
 DWORD WINAPI thread_read(LPVOID data) {
 	message msg;
-	BOOL ret=false;
+	BOOL ret = false;
 	DWORD n;
 	HANDLE IOReady;
 	OVERLAPPED Ov;
-	BOOL firstrun=true;
-	HWND hWnd = (HWND)data;
-	HDC hdc;
 	IOReady = CreateEvent(NULL, TRUE, FALSE, NULL);
 	while (1) {
 		ZeroMemory(&Ov, sizeof(Ov));
@@ -160,54 +190,33 @@ DWORD WINAPI thread_read(LPVOID data) {
 
 		ret = ReadFile(hPipe, &msg, MSGSIZE, &n, &Ov);
 		WaitForSingleObject(IOReady, INFINITE);
-		 GetOverlappedResult(hPipe, &Ov, &n, FALSE);
+		GetOverlappedResult(hPipe, &Ov, &n, FALSE);
 
-		
-	/*	if (!ret) {
-			_tprintf(TEXT("[ERROR] READING %d %d... threadRead \n"), ret, n);
-			continue;
+
+		/*	if (!ret) {
+		_tprintf(TEXT("[ERROR] READING %d %d... threadRead \n"), ret, n);
+		continue;
 		}*/
 		if (n<MSGSIZE) {
-			_tprintf(TEXT("[ERROR] Less bites received %d %d... (ReadFile)\n"), ret, n);
+			_tprintf(TEXT("[ERROR] Less bites received %d %d... (ThreadRead)\n"), ret, n);
 			//break;
 		}
 		else {
-			
-			
-			if (firstrun) {
-				idplayer = msg.idPlayer;
-				firstrun = false;
-			}
-			_tprintf(TEXT("[DEBUG] Recebi %d bytes, idplayer: %d\n"), n, msg.idPlayer);
-			InvalidateRect(hWnd, NULL, TRUE);
-			//TESTE APRESENTA MAPA
-			PAINTSTRUCT ps;
-			hdc = BeginPaint(hWnd, &ps);
-
-
-			for (int i = 0; i < msg.jogo.nNavesNormais; i++) {
-					Rectangle(hdc, msg.jogo.navesnormais[i].e.x, msg.jogo.navesnormais[i].e.y, msg.jogo.navesnormais[i].e.x + 5, msg.jogo.navesnormais[i].e.y + 5);
-					//TextOut(hdc, x + 5, y + 5, letras, 1);
-			}
-			EndPaint(hWnd, &ps);
-
-
-
-			//FIM TESTE APRESENTA MAPA
+			_tprintf(TEXT("[DEBUG] Recebi %d bytes, jogodif: %d\n"), n, msg.jogo.dificuldade);
 		}
 	}
 	return 0;
 }
 
-BOOL thread_write(Command c) {
+BOOL write_command(Command c) {
 	DWORD n;
 	BOOL ret;
 	//overlaped I/O
 	HANDLE IOReady;
 	OVERLAPPED Ov;
 
-	
 	IOReady = CreateEvent(NULL, TRUE, FALSE, NULL);
+
 
 		ZeroMemory(&Ov, sizeof(Ov));
 		ResetEvent(IOReady);
@@ -220,10 +229,9 @@ BOOL thread_write(Command c) {
 
 		if (!ret) {
 			_tprintf(TEXT("[ERRO] Escrever no pipe!\n"));
-			return false;
+			exit(-1);
 		}
 		_tprintf(TEXT("[DEBUG] Enviei %d bytes ao gateway...\n"), n);
-		return true;
 
 
 

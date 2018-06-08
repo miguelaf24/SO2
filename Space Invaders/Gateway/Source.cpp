@@ -11,6 +11,8 @@ Jogo(*getGame)();
 
 HMODULE hDLL;
 HANDLE eGameAcess, hGameUpdateThread, hPlayer[5], hConnectThread;
+
+BOOL GetLogin(HANDLE hPipeL, int PlayerID);
 //THREADs
 DWORD WINAPI GameUpdateThread(LPVOID params);
 DWORD WINAPI thread_read(LPVOID data);
@@ -36,15 +38,16 @@ int _tmain(int argc, LPTSTR argv[]) {
 	OpenBuff = (BOOL(*)())GetProcAddress(hDLL, "openBuffer");
 	getGame = (Jogo(*)())GetProcAddress(hDLL, "getGame");
 	rbuff = (pBuff(*)())GetProcAddress(hDLL, "returnBuff");
+	wrtMSG = (BOOL(*)(Command))GetProcAddress(hDLL, "WriteBuffer");
 
 	OpenGame(); //carrega jogo da memoria
 	OpenBuff(); //carrega buffer da memoria
 
 	hConnectThread = CreateThread(NULL, 0, connect_Thread, NULL, 0, 0);
-		if (hConnectThread == NULL) {
-			_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting game update thread\n %d  \n"), GetLastError());
-			return 0;
-		}
+	if (hConnectThread == NULL) {
+		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting game update thread\n %d  \n"), GetLastError());
+		return 0;
+	}
 
 	hGameUpdateThread = CreateThread(NULL, 0, GameUpdateThread, NULL, 0, 0);
 	if (hGameUpdateThread == NULL) {
@@ -52,7 +55,19 @@ int _tmain(int argc, LPTSTR argv[]) {
 		return 0;
 	}
 
+	/*_tprintf(TEXT("TESTE COMANDOS GATEWAY \n"));
+	do {
+		_tprintf(TEXT("Insira id comando: "));
+		_tscanf_s(TEXT("%d"), &cmd.id);
+		_tprintf(TEXT("\nInsira valor do comando: "));
+		_tscanf_s(TEXT("%d"), &cmd.cmd);
 
+		if (!wrtMSG(cmd)) {
+			_tprintf(TEXT("Erro: não foi possível escrever do buffer -> %d\n"), GetLastError());
+			return 0;
+		}
+
+	} while (1);*/
 
 
 
@@ -145,9 +160,13 @@ DWORD WINAPI connect_Thread(LPVOID data) {
 			}
 
 		}
-
+		//	GetLogin(p, i);
 		//thread para tratar pedidos do pipe
-		hT = CreateThread(NULL, 0, thread_read, (LPVOID)p, 0, 0);
+		hT = CreateThread(NULL, 0, thread_read, (LPVOID)i, 0, 0);
+		if (hT == NULL)
+		{
+			_tprintf(TEXT("[DEBUG] ERRO AO INICIAR THREAD \n"));
+		}
 
 
 	}
@@ -155,14 +174,66 @@ DWORD WINAPI connect_Thread(LPVOID data) {
 	return 0;
 }
 
+BOOL GetLogin(HANDLE hPipeL, int PlayerID) {
+	HANDLE IOReady;
+	OVERLAPPED Ov;
+	IOReady = CreateEvent(NULL, TRUE, FALSE, NULL);
+	DWORD n;
+	BOOL ret;
+	char username[20];
+
+	ZeroMemory(&Ov, sizeof(Ov));
+	ResetEvent(IOReady);
+	Ov.hEvent = IOReady;
+
+	ReadFile(hPipeL, &username, sizeof(char) * 20, &n, &Ov);
+	WaitForSingleObject(IOReady, INFINITE);
+	ret = GetOverlappedResult(hPipeL, &Ov, &n, FALSE);
+
+	if (!ret || !n) {
+		_tprintf(TEXT("[ERRO](ao adquirir login de user)\n"));
+	}
+	_tprintf(TEXT("NOME: %hs\n"), username);
+
+
+	//Envia o ID ao player
+	ZeroMemory(&Ov, sizeof(Ov));
+	ResetEvent(IOReady);
+	Ov.hEvent = IOReady;
+
+	ret = WriteFile(hPipeL, &PlayerID, sizeof(int), &n, &Ov);
+
+	WaitForSingleObject(IOReady, INFINITE);
+
+	GetOverlappedResult(hPipeL, &Ov, &n, FALSE);
+
+	if (n < sizeof(int)) {
+		_tprintf(TEXT("[ERRO] Nao concluiu escrita! (WriteFile)\n"));
+		return FALSE;
+	}
+	else {
+		_tprintf(TEXT("[GATEWAY] Enviei %d bytes ao leitor...(WriteFile)\n"), n);
+	}
+	wrtMSG = (BOOL(*)(Command))GetProcAddress(hDLL, "WriteBuffer");
+	Command c;
+	strcpy_s(c.username, username);
+	c.id = PlayerID;
+	c.cmd = 0;
+	wrtMSG(c);
+	return TRUE;
+}
+
+
 DWORD WINAPI thread_read(LPVOID data) {
 	Command c;
 	DWORD n;
 	BOOL ret;
-	HANDLE hPipeL = (HANDLE)data;
+	int PlayerID =  (int)data;
+	HANDLE hPipeL = hPlayer[PlayerID];
 	HANDLE IOReady;
-	wrtMSG = (BOOL(*)(Command))GetProcAddress(hDLL, "WriteBuffer");
-
+	//wrtMSG = (BOOL(*)(Command))GetProcAddress(hDLL, "WriteBuffer");
+	_tprintf(TEXT("GET LOGIN\n"));
+	GetLogin(hPipeL, PlayerID);
 
 	OVERLAPPED Ov;
 	IOReady = CreateEvent(NULL, TRUE, FALSE, NULL);
@@ -181,12 +252,14 @@ DWORD WINAPI thread_read(LPVOID data) {
 			break;
 		}
 		else {
+			
 			if (!wrtMSG(c)) {
 				_tprintf(TEXT("Erro: não foi possível escrever do buffer -> %d\n"), GetLastError());
 				return 0;
 			}
 		}
 	}
+
 
 	return 0;
 }
