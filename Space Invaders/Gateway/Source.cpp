@@ -10,13 +10,14 @@ pBuff(*rbuff)();
 Jogo(*getGame)();
 
 HMODULE hDLL;
-HANDLE eGameAcess, hGameUpdateThread, hPlayer[5], hConnectThread;
+HANDLE eGameAcess, hGameUpdateThread, hGameStartThread, hPlayer[5], hConnectThread;
 
 BOOL GetLogin(HANDLE hPipeL, int PlayerID);
 //THREADs
 DWORD WINAPI GameUpdateThread(LPVOID params);
 DWORD WINAPI thread_read(LPVOID data);
 DWORD WINAPI connect_Thread(LPVOID data);
+DWORD WINAPI GameStart_Thread(LPVOID data);
 
 int _tmain(int argc, LPTSTR argv[]) {
 #ifdef UNICODE
@@ -48,7 +49,11 @@ int _tmain(int argc, LPTSTR argv[]) {
 		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting game update thread\n %d  \n"), GetLastError());
 		return 0;
 	}
-
+	hGameStartThread = CreateThread(NULL, 0, GameStart_Thread, NULL, 0, 0);
+	if (hGameStartThread == NULL) {
+		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting game update thread\n %d  \n"), GetLastError());
+		return 0;
+	}
 	hGameUpdateThread = CreateThread(NULL, 0, GameUpdateThread, NULL, 0, 0);
 	if (hGameUpdateThread == NULL) {
 		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting game update thread\n %d  \n"), GetLastError());
@@ -129,6 +134,15 @@ DWORD WINAPI GameUpdateThread(LPVOID params) {
 	return 0;
 
 
+}
+
+DWORD WINAPI GameStart_Thread(LPVOID data) {
+	HANDLE eGameStart = OpenEvent(EVENT_ALL_ACCESS, TRUE, _T("GameStartEvent"));
+	WaitForSingleObject(eGameStart, INFINITE);
+		TerminateThread(hConnectThread, 0);
+		_tprintf(TEXT("Finalizei thread de connects\n"));
+
+		return 0;
 }
 
 DWORD WINAPI connect_Thread(LPVOID data) {

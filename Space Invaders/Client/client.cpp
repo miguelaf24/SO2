@@ -9,6 +9,7 @@ TCHAR username[20];
 TCHAR szProgName[] = TEXT("SpaceInvaders Client");
 int PlayerID;
 BOOL Login();
+HWND hWnd;
 
 //THREADS
 DWORD WINAPI thread_read(LPVOID data);
@@ -30,7 +31,7 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 
 	int i = 0;
 	MSG lpMsg;
-	HWND hWnd; // hWnd é o handler da janela, gerado mais abaixo por CreateWindow()
+	 // hWnd é o handler da janela, gerado mais abaixo por CreateWindow()
 	WNDCLASSEX wcApp; // WNDCLASSEX é uma estrutura cujos membros servem para definir as características da classe da janela
 
 	wcApp.cbSize = sizeof(WNDCLASSEX); // Tamanho da estrutura WNDCLASSEX
@@ -88,14 +89,16 @@ int WINAPI WinMain(HINSTANCE hInst, HINSTANCE hPrevInst, LPSTR lpCmdLine, int nC
 	if (!WaitNamedPipe(PIPE_NAME, NMPWAIT_WAIT_FOREVER)) {
 		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'!\n"), PIPE_NAME);
 		Sleep(2000);
-		exit(-1);
+		CloseWindow(hWnd);
+		return 0;
 	}
 	_tprintf(TEXT("[DEBUG] Ligação ao pipe do escritor... (CreateFile)\n"));
 	hPipe = CreateFile(PIPE_NAME, GENERIC_READ | GENERIC_WRITE, 0, NULL, OPEN_EXISTING, 0 | FILE_FLAG_OVERLAPPED, NULL);
 	if (hPipe == NULL) {
 		_tprintf(TEXT("[ERRO] Ligar ao pipe '%s'! (CreateFile)\n"), PIPE_NAME);
 		Sleep(2000);
-		exit(-1);
+		CloseWindow(hWnd);
+		return 0;
 	}
 	_tprintf(TEXT("[DEBUG] Liguei-me...\n"));
 
@@ -182,6 +185,7 @@ DWORD WINAPI thread_read(LPVOID data) {
 	DWORD n;
 	HANDLE IOReady;
 	OVERLAPPED Ov;
+	HDC hdc;
 	IOReady = CreateEvent(NULL, TRUE, FALSE, NULL);
 	while (1) {
 		ZeroMemory(&Ov, sizeof(Ov));
@@ -203,6 +207,21 @@ DWORD WINAPI thread_read(LPVOID data) {
 		}
 		else {
 			_tprintf(TEXT("[DEBUG] Recebi %d bytes, jogodif: %d\n"), n, msg.jogo.dificuldade);
+
+
+			_tprintf(TEXT("[DEBUG] Recebi %d bytes, idplayer: %d\n"), n, msg.idPlayer);
+			InvalidateRect(hWnd, NULL, TRUE);
+			//TESTE APRESENTA MAPA
+			PAINTSTRUCT ps;
+			hdc = BeginPaint(hWnd, &ps);
+
+
+			for (int i = 0; i < msg.jogo.nNavesNormais; i++) {
+					Rectangle(hdc, msg.jogo.navesnormais[i].e.x, msg.jogo.navesnormais[i].e.y, msg.jogo.navesnormais[i].e.x + 5, msg.jogo.navesnormais[i].e.y + 5);
+					//TextOut(hdc, x + 5, y + 5, letras, 1);
+			}
+			EndPaint(hWnd, &ps);
+
 		}
 	}
 	return 0;

@@ -2,24 +2,24 @@
 
 #pragma region Variáveis Globais
 BOOL(*StartBuff)(void);
-Command(*GetMSG)();
+BOOL(*GetMSG)(pCommand);
 BOOL(*OpenGame)(void);
 BOOL(*setGame)(pJogo game);
 BOOL(*wrtMSG)(Command);
 pBuff(*rbuff)();
 HMODULE hDLL;
-HANDLE hThreadListener, eGameUpdate, mGameAcess, hThreadGame;
+HANDLE hThreadListener, eGameUpdate, mGameAcess, hThreadGame, eGameStart;
 //Jogo gameData;
 HANDLE hGame;
 pJogo pGameView;
 
-char Pmapa[51][201];
 #pragma endregion
 
 #pragma region Thread
 DWORD WINAPI ReadBufferThread(LPVOID params);
 DWORD WINAPI thread_basica(LPVOID nave);
 DWORD WINAPI thread_esquiva(LPVOID nave);
+DWORD WINAPI thread_Jogo(LPVOID nave);
 
 //DWORD WINAPI thread_Jogo(LPVOID jogo);
 #pragma endregion
@@ -63,8 +63,10 @@ int _tmain(int argc, LPTSTR argv[]) {
 	}
 	mGameAcess = OpenMutex(NULL, FALSE, _T("mutexGAME"));
 	eGameUpdate= CreateEvent(NULL, TRUE, FALSE, TEXT("GameUpdateEvent"));
+	eGameStart = CreateEvent(NULL, TRUE, FALSE, TEXT("GameStartEvent"));
+
 	StartBuff = (BOOL(*)())GetProcAddress(hDLL, "startBuffer");
-	GetMSG = (Command(*)())GetProcAddress(hDLL, "ReadBuffer");
+	GetMSG = (BOOL(*)(pCommand))GetProcAddress(hDLL, "ReadBuffer");
 	wrtMSG = (BOOL(*)(Command))GetProcAddress(hDLL, "WriteBuffer");
 	setGame = (BOOL(*)(pJogo))GetProcAddress(hDLL, "setGame"); //declaração função do DLL
 
@@ -83,14 +85,22 @@ int _tmain(int argc, LPTSTR argv[]) {
 	_tprintf(TEXT("PARA TESTES DE COMS COM GATEWAY E INICIALIZAÇÃO-> Insira dificuldade (1,2,3)"));
 	_tscanf_s(_T("%d"), &resp);
 	pGameView->dificuldade = resp;
-
 	start_Jogo();
-	
-	/*hThreadGame = CreateThread(NULL, 0, thread_Jogo, NULL, 0, 0);
-	if (hThreadGame == NULL) {
-		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
-		return 0;
-	}*/
+	_tprintf(TEXT("PARA TESTES DE COMS COM GATEWAY E INICIALIZAÇÃO-> Startgame? (1)"));
+	_tscanf_s(_T("%d"), &resp);
+	if (resp == 1) {
+
+		SetEvent(eGameStart);//sinaliza gateway de alterações atravez do evento
+		ResetEvent(eGameStart);//fecha a sinalização do evento
+		SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
+		ResetEvent(eGameUpdate);//fecha a sinalização do evento
+		hThreadGame = CreateThread(NULL, 0, thread_Jogo, NULL, 0, 0);
+		if (hThreadGame == NULL) {
+			_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
+			return 0;
+		}
+	}
+
 
 
 	/*_tprintf(TEXT("Iniciar (S/N)?"));
@@ -151,16 +161,24 @@ int _tmain(int argc, LPTSTR argv[]) {
 #pragma region Buffer
 DWORD WINAPI ReadBufferThread(LPVOID params) {
 	
-	Command temp;
-
+	pCommand temp= (pCommand)malloc(sizeof(Command));
+	
+	
 	while (1) {
 
-		temp = GetMSG(); //inicia a função do dll que aguarda pelo semaforo;
-		_tprintf(TEXT("\n[THREAD] Leitura: %d %d\n"), temp.id, temp.cmd);
+		 GetMSG(temp); //inicia a função do dll que aguarda pelo semaforo;
+		_tprintf(TEXT("\n[THREAD] Leitura: %d %d %hs\n"), temp->id, temp->cmd, temp->username);
 
+
+		if (temp->cmd == 0) {
+			_tprintf(TEXT("\n[THREAD] Bem vindo:%hs\n"), temp->username);
+			
+			
+
+		}
 
 		//CHAMA FUNÇÃO DE MANIPULAÇÂO DE COMANDOS
-		//TrataComando(temp);
+		TrataComando(*temp);
 	}
 	
 }
@@ -171,10 +189,24 @@ void TrataComando(Command temp) {
 		
 	//trata de tudo o que tem a ver com o comando;
 	//TODO bla bla bla
+	switch (temp.cmd) {
+	case 0:
 
+		pGameView->nPlayers++;
+		pGameView->player[temp.id].id = temp.id;
+		CopyMemory(pGameView->player[temp.id].username,temp.username, sizeof(temp.username));
+		break;
+	case 1:
+		
+		break;
 
-	SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
-	ResetEvent(eGameUpdate);//fecha a sinalização do evento
+	default:
+		_tprintf(TEXT("\n[TrataComando] Leitura: %d %d %hs\n"), temp.id, temp.cmd, temp.username);
+
+		break;
+	}
+//	SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
+	//ResetEvent(eGameUpdate);//fecha a sinalização do evento
 
 	ReleaseMutex(mGameAcess); //liberta mutex
 	
@@ -186,10 +218,7 @@ void TrataComando(Command temp) {
 #pragma region Start
 
 void start_Jogo() {
-	
-	
 
-	HANDLE hThreadNaveEsquiva, hThreadNaveBasica;
 	WaitForSingleObject(mGameAcess, INFINITE);
 	
 
@@ -266,43 +295,54 @@ void start_Jogo() {
 	#pragma region Memória Partilhada
 
 	//actualiza memoria partilhada
-	SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
+/*	SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
 
-    ResetEvent(eGameUpdate);//fecha a sinalização do evento
+	ResetEvent(eGameUpdate);//fecha a sinalização do evento*/
 		//CopyMemory(pGameView, &j, sizeof(Jogo));
 	ReleaseMutex(mGameAcess);
 
 	#pragma endregion
 	
-	#pragma region Create Threads
 
-	hThreadNaveEsquiva = CreateThread(NULL, 0, thread_esquiva, NULL, 0, 0); //inicia thread para naves esquivas
-	if (hThreadNaveEsquiva == NULL) {
-		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
-		return;
-	}
-
-	hThreadNaveBasica = CreateThread(NULL, 0, thread_basica, NULL, 0, 0); //inicia thread para naves basicas
-	if (hThreadNaveBasica == NULL) {
-		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
-		return;
-	}
-	
-	#pragma endregion
 	
 	//TODO-> TRATAMENTO DE JOGO, POWERUPS E TIROS ATACANTES
 
 	return;
 }
 
+
+
+#pragma region Create Threads
+DWORD WINAPI thread_Jogo(LPVOID nave) {
+HANDLE hThreadNaveEsquiva, hThreadNaveBasica;
+
+
+	hThreadNaveEsquiva = CreateThread(NULL, 0, thread_esquiva, NULL, 0, 0); //inicia thread para naves esquivas
+	if (hThreadNaveEsquiva == NULL) {
+		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
+		return 0;
+	}
+
+	hThreadNaveBasica = CreateThread(NULL, 0, thread_basica, NULL, 0, 0); //inicia thread para naves basicas
+	if (hThreadNaveBasica == NULL) {
+		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
+		return 0;
+	}
+
+	return 0;
+}
+#pragma endregion
+
+
 #pragma endregion
 
 #pragma region Naves
 DWORD WINAPI thread_basica(LPVOID nave) {
-
+	_tprintf(TEXT("[(DEBUG)threads  basica \n"));
 	while (pGameView->nNavesNormais > 0) {
-		
-		Sleep((DWORD)pGameView->navesnormais->velocidade );
+		_tprintf(TEXT("[(DEBUG)NAVE BASICA ACTUALIZA JOGO  \n"));
+
+		Sleep(2000);//(DWORD)pGameView->navesnormais->velocidade );
 		WaitForSingleObject(mGameAcess, INFINITE);
 		for (int i = pGameView->nNavesNormais - 1; i >= 0 ; i--) {
 			if (pGameView->navesnormais[i].vida > 0) {
@@ -350,25 +390,7 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 		}
 		ReleaseMutex(mGameAcess);
 		
-		for (int i = 0; i < 51; i++) {
-			for (int j = 0; j < 201; j++) {
-				Pmapa[i][j] = ' ';
-			}
-		}
-		for (int i = 0; i < pGameView->nNavesNormais; i++) {
-			for (int j = pGameView->navesnormais[i].e.x; j < (pGameView->navesnormais[i].e.x + pGameView->navesnormais[i].e.largura); j++) {
-				for (int k = pGameView->navesnormais[i].e.y; k < (pGameView->navesnormais[i].e.y + pGameView->navesnormais[i].e.altura); k++) {
-					Pmapa[j][k] = 'N';
-				}
-			}
-		}
 
-		for (int j = 0; j < 50; j++) {
-			for (int i = 0; i < 51; i++) {
-				_tprintf(TEXT("%c"), Pmapa[i][j]);
-			}
-			_tprintf(TEXT("\n"));
-		}
 		SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
 		//Sleep(100);
 		ResetEvent(eGameUpdate);//fecha a sinalização do evento
