@@ -9,6 +9,8 @@ BOOL(*wrtMSG)(Command);
 pBuff(*rbuff)();
 HMODULE hDLL;
 HANDLE hThreadListener, eGameUpdate, mGameAcess, hThreadGame, eGameStart;
+HANDLE hThreadNaveEsquiva, hThreadNaveBasica;
+
 //Jogo gameData;
 HANDLE hGame;
 pJogo pGameView;
@@ -20,6 +22,7 @@ DWORD WINAPI ReadBufferThread(LPVOID params);
 DWORD WINAPI thread_basica(LPVOID nave);
 DWORD WINAPI thread_esquiva(LPVOID nave);
 DWORD WINAPI thread_Jogo(LPVOID nave);
+
 
 //DWORD WINAPI thread_Jogo(LPVOID jogo);
 #pragma endregion
@@ -99,64 +102,27 @@ int _tmain(int argc, LPTSTR argv[]) {
 			_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
 			return 0;
 		}
+
 	}
 
 
-
-	/*_tprintf(TEXT("Iniciar (S/N)?"));
-	_tscanf_s(TEXT("%c"), &resp, 1);*/
-
-
-	if (resp == 'S' || resp == 's') {
-		
-
-	/*	DWORD * threadId = (DWORD *)malloc(n * sizeof(DWORD));
-		HANDLE * hT = (HANDLE *)malloc(n * sizeof(HANDLE));
-		PARAM * p = (PARAM *)malloc(n * sizeof(PARAM));
-
-		Mutex = CreateMutex(NULL, FALSE, TEXT("Mutex1"));//Criar Mutex
-		SYSTEMTIME timei, timef;
-		//GetLocalTime(&timei);
-		clock_t start = clock();
-
-		for (int i = 0; i < n; i++) {
-			p[i].num = i;
-			p[i].inicio = inicio + (i) * (fim - inicio) / n;
-			p[i].fim = inicio + (i + 1) * (fim - inicio) / n;
-
-			hT[i] = CreateThread(NULL, 0, (LPTHREAD_START_ROUTINE)Contar, (LPVOID)&p[i], 0, &threadId[i]);
-			if (hT[i] != NULL) {
-				_tprintf(TEXT("Lancei uma thread com id %d\n"), threadId[i]);
-				//WaitForSingleObject(hT, INFINITE);
-			}
-			else
-				_tprintf(TEXT("Erro ao criar Thread\n"));
-		}
-		WaitForMultipleObjects(4, hT, TRUE, INFINITE);
-		//GetLocalTime(&timef);
-		/*
-		FILETIME fti, ftf, ftdif;
-		SystemTimeToFileTime(&timei, &fti);
-		SystemTimeToFileTime(&timef, &ftf);
-		*/
-
-		/*// Execuatable code
-		clock_t stop = clock();
-		double elapsed = (double)(stop - start) * 1000.0 / CLOCKS_PER_SEC;
-		printf("Time elapsed in ms: %f", elapsed);
-
-		_tprintf(TEXT("\n%f\n", time_spent));
-
-		CloseHandle(Mutex);*/
-	}
-
-
+	
 	WaitForSingleObject(hThreadListener, INFINITE);
+	CloseHandle(hThreadListener);
+	CloseHandle(hThreadGame);
+	CloseHandle(hThreadNaveBasica);
+	CloseHandle(hThreadNaveEsquiva);
+
+	
 	_tprintf(TEXT("[Thread Principal %d]Vou terminar..."), GetCurrentThreadId());
 	
 
 	return 0;
 }
+
+
+
+
 
 #pragma region Buffer
 DWORD WINAPI ReadBufferThread(LPVOID params) {
@@ -169,12 +135,9 @@ DWORD WINAPI ReadBufferThread(LPVOID params) {
 		 GetMSG(temp); //inicia a função do dll que aguarda pelo semaforo;
 		_tprintf(TEXT("\n[THREAD] Leitura: %d %d %hs\n"), temp->id, temp->cmd, temp->username);
 
-
+		
 		if (temp->cmd == 0) {
 			_tprintf(TEXT("\n[THREAD] Bem vindo:%hs\n"), temp->username);
-			
-			
-
 		}
 
 		//CHAMA FUNÇÃO DE MANIPULAÇÂO DE COMANDOS
@@ -314,7 +277,6 @@ void start_Jogo() {
 
 #pragma region Create Threads
 DWORD WINAPI thread_Jogo(LPVOID nave) {
-HANDLE hThreadNaveEsquiva, hThreadNaveBasica;
 
 
 	hThreadNaveEsquiva = CreateThread(NULL, 0, thread_esquiva, NULL, 0, 0); //inicia thread para naves esquivas
