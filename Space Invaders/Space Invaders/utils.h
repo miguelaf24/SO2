@@ -7,6 +7,9 @@
 #include <fcntl.h>
 #include <stdbool.h>
 
+
+
+
 #define BUFFSIZE 30
 #define PIPEBUFFSIZE 4000
 #define TCHARSIZE 30
@@ -43,6 +46,7 @@ typedef struct {
 }PowerUP;
 
 typedef struct {
+	char username[20];
 	int id;
 	int powerup;
 	int tpowerup;
@@ -83,6 +87,7 @@ typedef struct {
 typedef struct {
 	int id;
 	int cmd;
+	char username[20];
 }Command, *pCommand;
 
 typedef struct {
