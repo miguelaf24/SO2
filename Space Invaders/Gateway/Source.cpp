@@ -10,7 +10,7 @@ pBuff(*rbuff)();
 Jogo(*getGame)();
 
 HMODULE hDLL;
-HANDLE eGameAcess, hGameUpdateThread, hGameStartThread, hPlayer[5], hConnectThread;
+HANDLE eGameAcess, hGameUpdateThread, hGameStartThread, hPlayer[5], hConnectThread,p;
 
 BOOL GetLogin(HANDLE hPipeL, int PlayerID);
 //THREADs
@@ -140,6 +140,8 @@ DWORD WINAPI GameStart_Thread(LPVOID data) {
 	HANDLE eGameStart = OpenEvent(EVENT_ALL_ACCESS, TRUE, _T("GameStartEvent"));
 	WaitForSingleObject(eGameStart, INFINITE);
 		TerminateThread(hConnectThread, 0);
+		DisconnectNamedPipe(p);
+		CloseHandle(p);
 		_tprintf(TEXT("Finalizei thread de connects\n"));
 
 		return 0;
@@ -148,7 +150,7 @@ DWORD WINAPI GameStart_Thread(LPVOID data) {
 DWORD WINAPI connect_Thread(LPVOID data) {
 	//THREAD T1
 	int i;
-	HANDLE p, hT;
+	HANDLE hT;
 
 	for (int i = 0; i < 5; i++)
 		hPlayer[i] = NULL;
