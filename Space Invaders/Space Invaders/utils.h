@@ -56,6 +56,13 @@ typedef struct {
 }Player;
 
 typedef struct {
+	Elemento e;
+}Bomba;
+typedef struct {
+	Elemento e;
+}Tiro;
+
+typedef struct {
 	int nNavesNormais;
 	int nNormaisVivas;
 	int nNavesEsquivas;
@@ -63,26 +70,23 @@ typedef struct {
 	int nPlayers;
 	int disparo;
 	int dificuldade;
+	int velPoweupBomba;
+	int DurPower;
+	int velTiro;
 	int maxX; 
 	int maxY;
+	int pPower;
+	Tiro tiros[100];
+	Bomba bombas[20];
+	PowerUP powerups[20];
 	Nave navesnormais[30];
 	Nave navesesquivas[30];
 	Player player[5];
 }Jogo, *pJogo;
 
-typedef struct {
-	int id;
-	int efeito;
-	Elemento e;
-} Powerup;
 
-typedef struct {
-	Elemento e;
-}Tiro;
 
-typedef struct {
-	Elemento e;
-}Bomba;
+
 
 typedef struct {
 	int id;

@@ -9,7 +9,7 @@ BOOL(*wrtMSG)(Command);
 pBuff(*rbuff)();
 HMODULE hDLL;
 HANDLE hThreadListener, eGameUpdate, mGameAcess, hThreadGame, eGameStart;
-HANDLE hThreadNaveEsquiva, hThreadNaveBasica;
+HANDLE hThreadNaveEsquiva, hThreadNaveBasica, hThreadNaveBombas;
 
 //Jogo gameData;
 HANDLE hGame;
@@ -23,6 +23,7 @@ DWORD WINAPI ReadBufferThread(LPVOID params);
 DWORD WINAPI thread_basica(LPVOID nave);
 DWORD WINAPI thread_esquiva(LPVOID nave);
 DWORD WINAPI thread_Jogo(LPVOID nave);
+DWORD WINAPI thread_bombas(LPVOID data);
 
 
 //DWORD WINAPI thread_Jogo(LPVOID jogo);
@@ -59,13 +60,17 @@ int _tmain(int argc, LPTSTR argv[]) {
 		_tprintf(_T("(DEBUG)Server:Erro-> FILEMAPPING OPEN\n"));
 		return FALSE;
 	}
-
+	mGameAcess = CreateMutex(NULL, TRUE, _T("mutexGAME"));
+	if (mGameAcess == NULL) {
+		_tprintf(_T("(DEBUG)DLL:Erro-> MUTEX GAME\n"));
+		return FALSE;
+	}
 	pGameView = (pJogo)MapViewOfFile(hGame, FILE_MAP_ALL_ACCESS, 0, 0, sizeof(Jogo));
 	if (pGameView == NULL) {
 		_tprintf(_T("(DEBUG)Server:Erro-> FILEVIEW OPEN\n"));
 		return FALSE;
 	}
-	mGameAcess = OpenMutex(NULL, FALSE, _T("mutexGAME"));
+	//mGameAcess = OpenMutex(NULL, FALSE, _T("mutexGAME"));
 	eGameUpdate= CreateEvent(NULL, TRUE, FALSE, TEXT("GameUpdateEvent"));
 	eGameStart = CreateEvent(NULL, TRUE, FALSE, TEXT("GameStartEvent"));
 
@@ -189,6 +194,8 @@ void start_Jogo() {
 #pragma region Mapa
 	pGameView->maxX = 50;
 	pGameView->maxY = 200;
+	pGameView->pPower = 50;
+	pGameView->velPoweupBomba = 1000;
 #pragma endregion
 
 #pragma region Dificuldade
@@ -263,6 +270,17 @@ void start_Jogo() {
 
 	for (int i = pGameView->nNavesEsquivas; i < 30; i++)
 		pGameView->navesesquivas[i].vida = 0;
+
+	for (int i = 0; i < 100; i++) {
+		pGameView->tiros[i].e.id[0] = 'i';
+	}
+	for (int i = 0; i < 20; i++) {
+		pGameView->bombas[i].e.id[0] = 'i';
+	}
+	for (int i = 0; i < 20; i++) {
+		pGameView->powerups[i].e.id[0] = 'i';
+	}
+
 #pragma endregion
 
 	
@@ -291,6 +309,12 @@ DWORD WINAPI thread_Jogo(LPVOID nave) {
 
 	hThreadNaveBasica = CreateThread(NULL, 0, thread_basica, NULL, 0, 0); //inicia thread para naves basicas
 	if (hThreadNaveBasica == NULL) {
+		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
+		return 0;
+	}
+
+	hThreadNaveBombas = CreateThread(NULL, 0, thread_bombas, NULL, 0, 0); //inicia thread para naves basicas
+	if (hThreadNaveBombas == NULL) {
 		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
 		return 0;
 	}
@@ -348,7 +372,7 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 			}
 
 		}
-		ReleaseMutex(mGameAcess);
+		
 
 		for (int i = 0; i < 51; i++) {
 			for (int j = 0; j < 201; j++) {
@@ -371,12 +395,23 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 			}
 		}
 
+
+		for (int i = 0; i < 20; i++) {
+					if ((pGameView->powerups[i].e.id[0] != 'i')) {
+						Pmapa[pGameView->powerups[i].e.x][pGameView->powerups[i].e.y] = pGameView->powerups[i].e.id[0];
+					}
+		}
+			
+	
+
+
 		for (int j = 0; j < 50; j++) {
 			for (int i = 0; i < 51; i++) {
 				_tprintf(TEXT("%c"), Pmapa[i][j]);
 			}
 			_tprintf(TEXT("\n"));
 		}
+		ReleaseMutex(mGameAcess);
 		SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
 							  //Sleep(100);
 		ResetEvent(eGameUpdate);//fecha a sinalização do evento
@@ -477,5 +512,65 @@ bool verifyID(char id[], char id2[]) {
 }
 
 #pragma endregion
+
+DWORD WINAPI thread_tiros(LPVOID data) {
+	
+	while (1) {
+		Sleep(pGameView->velTiro);
+		WaitForSingleObject(mGameAcess,INFINITE);
+		for (int i = 0; i < 100; i++) {
+			if ((pGameView->tiros[i].e.id[0] != 'i')) {
+				pGameView->tiros[i].e.y -= 1;
+			}
+		}
+		ReleaseMutex(mGameAcess);
+	}
+	return 0;
+}
+DWORD WINAPI thread_bombas(LPVOID data) {
+	int random;
+	srand((int)time(NULL));
+	while (1) {
+		Sleep(pGameView->velPoweupBomba);
+		WaitForSingleObject(mGameAcess, INFINITE);
+		for (int i = 0; i < 20; i++) {
+			if ((pGameView->bombas[i].e.id[0] != 'i')) {
+				pGameView->bombas[i].e.y += 1;
+			}
+		}
+		random = rand() % 100;
+		for (int i = 0; i < 20; i++) {
+			if ((pGameView->powerups[i].e.id[0] != 'i')) {
+				pGameView->powerups[i].e.y += 1;
+			}
+			else {
+				
+				if (random < pGameView->pPower) {
+					int random2 = rand() % 10;
+					if (random2 == 0) {
+						pGameView->powerups[i].e.id[0] = 'R';
+
+					}
+					else if (random2 <= 2) {
+						pGameView->powerups[i].e.id[0] = 'N';
+					}
+					else {
+						pGameView->powerups[i].e.id[0] = 'V';
+					}
+					pGameView->powerups[i].e.x = rand() % pGameView->maxX-1;
+					pGameView->powerups[i].e.y = 0;
+					random=101;
+				
+				}
+				
+			}
+		}
+		ReleaseMutex(mGameAcess);
+	
+
+	}
+	return 0;
+}
+
 
 #pragma endregion
