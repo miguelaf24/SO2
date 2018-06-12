@@ -203,8 +203,8 @@ void start_Jogo() {
 		pGameView->nNavesEsquivas = 10;
 		break;
 	case 3:
-		pGameView->nNavesNormais = 1;
-		pGameView->nNavesEsquivas = 1;
+		pGameView->nNavesNormais = 30;
+		pGameView->nNavesEsquivas = 15;
 		break;
 	default:
 		break;
