@@ -23,6 +23,7 @@ DWORD WINAPI ReadBufferThread(LPVOID params);
 DWORD WINAPI thread_basica(LPVOID nave);
 DWORD WINAPI thread_esquiva(LPVOID nave);
 DWORD WINAPI thread_Jogo(LPVOID nave);
+DWORD WINAPI thread_tiros(LPVOID data);
 DWORD WINAPI thread_bombas(LPVOID data);
 
 
@@ -30,6 +31,8 @@ DWORD WINAPI thread_bombas(LPVOID data);
 #pragma endregion
 
 #pragma region Functions
+void setBomba(int x, int y);
+void verifyColision(Tiro *t);
 void TrataComando(Command temp);
 bool CanMoveInvader(int x, int y, int xl, int ya, char id[]);
 bool verifyID(char id[], char id2[]);
@@ -195,6 +198,7 @@ void start_Jogo() {
 	pGameView->maxX = 50;
 	pGameView->maxY = 200;
 	pGameView->pPower = 50;
+	pGameView->fBombas = 100;
 	pGameView->velPoweupBomba = 1000;
 #pragma endregion
 
@@ -224,6 +228,7 @@ void start_Jogo() {
 	int auxY = 6;
 	bool auxLeft = true;
 	for (int i = 0; i < pGameView->nNavesNormais; i++) {
+		pGameView->navesnormais[i].i_desparo = rand() % pGameView->fBombas;
 		pGameView->navesnormais[i].velocidade = 1000 - 100 * (pGameView->dificuldade - 1);
 		pGameView->navesnormais[i].vida = 1;
 		pGameView->navesnormais[i].e.altura = 3;
@@ -300,7 +305,6 @@ void start_Jogo() {
 #pragma region Create Threads
 DWORD WINAPI thread_Jogo(LPVOID nave) {
 
-
 	hThreadNaveEsquiva = CreateThread(NULL, 0, thread_esquiva, NULL, 0, 0); //inicia thread para naves esquivas
 	if (hThreadNaveEsquiva == NULL) {
 		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
@@ -338,10 +342,22 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 			if (pGameView->navesnormais[i].vida > 0) {
 				int x = pGameView->navesnormais[i].e.x;
 				int y = pGameView->navesnormais[i].e.y;
+				int l = pGameView->navesnormais[i].e.largura;
+				int a = pGameView->navesnormais[i].e.altura;
+				//Desparar
+				if (pGameView->navesnormais[i].i_desparo > 0) 
+					pGameView->navesnormais[i].i_desparo--;
+				else {
+					pGameView->navesnormais[i].i_desparo=pGameView->fBombas;
+					setBomba(x + l / 2, y + a);
+
+				}
+
+				//Deslocar
 				if (pGameView->navesnormais[i].isLeft) {
 					if (x == 0) {
 
-						y = y + pGameView->navesnormais[i].e.altura + 1;
+						y = y + a + 1;
 					}
 					else
 						x = x - 1;
@@ -401,6 +417,12 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 						Pmapa[pGameView->powerups[i].e.x][pGameView->powerups[i].e.y] = pGameView->powerups[i].e.id[0];
 					}
 		}
+
+		for (int i = 0; i < 20; i++) {
+			if ((pGameView->bombas[i].e.id[0] != 'i')) {
+				Pmapa[pGameView->bombas[i].e.x][pGameView->bombas[i].e.y] = pGameView->bombas[i].e.id[0];
+			}
+		}
 			
 	
 
@@ -421,9 +443,6 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 }
 
 DWORD WINAPI thread_esquiva(LPVOID nave) {
-
-
-
 	//	Nave *n = gameData.navesesquivas;
 
 	while (pGameView->nNavesEsquivas > 0) {
@@ -500,6 +519,59 @@ bool CanMoveInvader(int x, int y, int xl, int ya, char id[]) {
 	return true;
 }
 
+void verifyColision(Tiro *t) {
+	int i, y, x, l, a;
+
+	for (i = 0; i < pGameView->nNavesNormais; i++) {
+		y = pGameView->navesnormais[i].e.y;
+		x= pGameView->navesnormais[i].e.x;
+		l = pGameView->navesnormais[i].e.largura;
+		a = pGameView->navesnormais[i].e.altura;
+		
+		if (t->e.y >= y && t->e.y < y + a) {
+			if (t->e.x >= x && t->e.x < x + l) {
+				pGameView->navesnormais[i].vida -= 1;
+				t->e.id[0] = 'i';
+			}
+		}
+	
+	}
+
+	for (i = 0; i < pGameView->nNavesEsquivas; i++) {
+		y = pGameView->navesesquivas[i].e.y;
+		x = pGameView->navesesquivas[i].e.x;
+		l = pGameView->navesesquivas[i].e.largura;
+		a = pGameView->navesesquivas[i].e.altura;
+
+		if (t->e.y >= y && t->e.y < y + a) {
+			if (t->e.x >= x && t->e.x < x + l) {
+				pGameView->navesesquivas[i].vida -= 1;
+				t->e.id[0] = 'i';
+			}
+		}
+
+	}
+}
+
+void verifyColisionB(Bomba *b) {
+	int i, y, x, l, a;
+
+	for (i = 0; i < pGameView->nPlayers; i++) {
+		y = pGameView->player[i].nave.e.y;
+		x = pGameView->player[i].nave.e.x;
+		l = pGameView->player[i].nave.e.largura;
+		a = pGameView->player[i].nave.e.altura;
+
+		if (b->e.y >= y && b->e.y < y + a) {
+			if (b->e.x >= x && b->e.x < x + l) {
+				pGameView->player[i].nave.vida -= 1;
+			}
+		}
+
+	}
+
+}
+
 bool verifyID(char id[], char id2[]) {
 	for (int i = 0; i < 3; i++) {
 		if (id[i] != id2[i]) {
@@ -509,6 +581,17 @@ bool verifyID(char id[], char id2[]) {
 	}
 	//_tprintf(_T("ID - True\n"));
 	return true;
+}
+
+void setBomba(int x, int y) {
+	for (int i = 0; i < 20; i++) {
+		if ((pGameView->bombas[i].e.id[0] == 'i')) {
+			pGameView->bombas[i].e.id[0] = 'b';
+			pGameView->bombas[i].e.x = x;
+			pGameView->bombas[i].e.y = y;
+			return;
+		}
+	}
 }
 
 #pragma endregion
@@ -521,12 +604,15 @@ DWORD WINAPI thread_tiros(LPVOID data) {
 		for (int i = 0; i < 100; i++) {
 			if ((pGameView->tiros[i].e.id[0] != 'i')) {
 				pGameView->tiros[i].e.y -= 1;
+				verifyColision(&pGameView->tiros[i]);
 			}
 		}
 		ReleaseMutex(mGameAcess);
 	}
 	return 0;
 }
+
+
 DWORD WINAPI thread_bombas(LPVOID data) {
 	int random;
 	srand((int)time(NULL));

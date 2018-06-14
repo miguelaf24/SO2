@@ -75,6 +75,7 @@ typedef struct {
 	int velTiro;
 	int maxX; 
 	int maxY;
+	int fBombas;// Frequencia que caí bomba em cada nave
 	int pPower;
 	Tiro tiros[100];
 	Bomba bombas[20];
