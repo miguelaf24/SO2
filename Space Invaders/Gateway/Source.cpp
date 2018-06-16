@@ -84,7 +84,7 @@ void broadcast(Jogo gamedata) {
 	OVERLAPPED Ov;
 	HANDLE IOReady = CreateEvent(NULL, TRUE, FALSE, NULL);
 	BOOL ret;
-	DWORD n;
+	DWORD nb;
 	message msg;
 	msg.jogo = gamedata;
 	for (int i = 0; i < 5; i++) {
@@ -94,17 +94,17 @@ void broadcast(Jogo gamedata) {
 			ResetEvent(IOReady);
 			Ov.hEvent = IOReady;
 
-			ret = WriteFile(hPlayer[i], &msg, MSGSIZE, &n, &Ov);
+			ret = WriteFile(hPlayer[i], &msg, MSGSIZE, &nb, &Ov);
 
 			WaitForSingleObject(IOReady, INFINITE);
 
-			GetOverlappedResult(hPlayer[i], &Ov, &n, FALSE);
+			GetOverlappedResult(hPlayer[i], &Ov, &nb, FALSE);
 
-			if (n < MSGSIZE) {
+			if (nb < MSGSIZE) {
 				_tprintf(TEXT("[ERRO] Nao concluiu escrita! (WriteFile)\n"));
 			}
 			else {
-				_tprintf(TEXT("[GATEWAY] Enviei %d bytes ao leitor...(WriteFile)\n"), n);
+				_tprintf(TEXT("[GATEWAY] Enviei %d bytes ao leitor...(WriteFile)\n"), nb);
 			}
 		}
 	}
@@ -194,7 +194,7 @@ BOOL GetLogin(HANDLE hPipeL, int PlayerID) {
 	HANDLE IOReady;
 	OVERLAPPED Ov;
 	IOReady = CreateEvent(NULL, TRUE, FALSE, NULL);
-	DWORD n;
+	DWORD nl;
 	BOOL ret;
 	char username[20];
 
@@ -202,33 +202,35 @@ BOOL GetLogin(HANDLE hPipeL, int PlayerID) {
 	ResetEvent(IOReady);
 	Ov.hEvent = IOReady;
 
-	ReadFile(hPipeL, &username, sizeof(char) * 20, &n, &Ov);
+	ReadFile(hPipeL, &username, sizeof(char) * 20, &nl, &Ov);
 	WaitForSingleObject(IOReady, INFINITE);
-	ret = GetOverlappedResult(hPipeL, &Ov, &n, FALSE);
+	ret = GetOverlappedResult(hPipeL, &Ov, &nl, FALSE);
 
-	if (!ret || !n) {
+	if (!ret || !nl) {
 		_tprintf(TEXT("[ERRO](ao adquirir login de user)\n"));
 	}
 	_tprintf(TEXT("NOME: %hs\n"), username);
 
 
 	//Envia o ID ao player
+	DWORD nll;
+
 	ZeroMemory(&Ov, sizeof(Ov));
 	ResetEvent(IOReady);
 	Ov.hEvent = IOReady;
 
-	ret = WriteFile(hPipeL, &PlayerID, sizeof(int), &n, &Ov);
+	ret = WriteFile(hPipeL, &PlayerID, sizeof(int), &nll, &Ov);
 
 	WaitForSingleObject(IOReady, INFINITE);
 
-	GetOverlappedResult(hPipeL, &Ov, &n, FALSE);
+	GetOverlappedResult(hPipeL, &Ov, &nll, FALSE);
 
-	if (n < sizeof(int)) {
+	if (nll < sizeof(int)) {
 		_tprintf(TEXT("[ERRO] Nao concluiu escrita! (WriteFile)\n"));
 		return FALSE;
 	}
 	else {
-		_tprintf(TEXT("[GATEWAY] Enviei %d bytes ao leitor...(WriteFile)\n"), n);
+		_tprintf(TEXT("[GATEWAY] Enviei %d bytes ao leitor...(WriteFile)\n"), nll);
 	}
 	wrtMSG = (BOOL(*)(Command))GetProcAddress(hDLL, "WriteBuffer");
 	Command c;
@@ -242,7 +244,7 @@ BOOL GetLogin(HANDLE hPipeL, int PlayerID) {
 
 DWORD WINAPI thread_read(LPVOID data) {
 	Command c;
-	DWORD n;
+	DWORD rn;
 	BOOL ret;
 	int PlayerID =  (int)data;
 	HANDLE hPipeL = hPlayer[PlayerID];
@@ -259,12 +261,12 @@ DWORD WINAPI thread_read(LPVOID data) {
 		ResetEvent(IOReady);
 		Ov.hEvent = IOReady;
 
-		ReadFile(hPipeL, &c, sizeof(Command), &n, &Ov);
+		ReadFile(hPipeL, &c, sizeof(Command), &rn, &Ov);
 		WaitForSingleObject(IOReady, INFINITE);
-		ret = GetOverlappedResult(hPipeL, &Ov, &n, FALSE);
+		ret = GetOverlappedResult(hPipeL, &Ov, &rn, FALSE);
 
-		if (!ret || !n) {
-			_tprintf(TEXT("[ERRO] %d %d... (ReadFile)\n"), ret, n);
+		if (!ret || !rn) {
+			_tprintf(TEXT("[ERRO] %d %d... (ReadFile)\n"), ret, rn);
 			break;
 		}
 		else {
