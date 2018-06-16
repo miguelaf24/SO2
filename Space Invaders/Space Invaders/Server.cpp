@@ -168,10 +168,21 @@ void TrataComando(Command temp) {
 		pGameView->player[temp.id].id = temp.id;
 		CopyMemory(pGameView->player[temp.id].username,temp.username, sizeof(temp.username));
 		break;
-	case 1:
+	case LEFT:
 		
 		break;
+	case RIGHT:
 
+		break;
+	case UP:
+
+		break;
+	case DOWN:
+
+		break;
+	case SHOT: //dispara tiro
+
+		break;
 	default:
 		_tprintf(TEXT("\n[TrataComando] Leitura: %d %d %hs\n"), temp.id, temp.cmd, temp.username);
 

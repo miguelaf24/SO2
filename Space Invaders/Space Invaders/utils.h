@@ -8,17 +8,19 @@
 #include <stdbool.h>
 
 
+//COMANDS
+#define LEFT 1
+#define RIGHT 2
+#define UP 3
+#define DOWN 4
+#define SHOT 5
 
 
 #define BUFFSIZE 30
 #define PIPEBUFFSIZE 4000
 #define TCHARSIZE 30
 
-//direções
-#define LEFT 0
-#define UP 1
-#define RIGHT 2
-#define DOWN 3
+
 
 
 
