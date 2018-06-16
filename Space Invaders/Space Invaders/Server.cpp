@@ -37,6 +37,8 @@ void TrataComando(Command temp);
 bool CanMoveInvader(int x, int y, int xl, int ya, char id[]);
 bool verifyID(char id[], char id2[]);
 void start_Jogo();
+void movePlayer(Player *p, int x, int y);
+void shot(Player *p);
 #pragma endregion
 
 int _tmain(int argc, LPTSTR argv[]) {
@@ -97,10 +99,10 @@ int _tmain(int argc, LPTSTR argv[]) {
 	_tprintf(TEXT("PARA TESTES DE COMS COM GATEWAY E INICIALIZAÇÃO-> Insira dificuldade (1,2,3)"));
 	_tscanf_s(_T("%d"), &resp);
 	pGameView->dificuldade = resp;
-	start_Jogo();
 	_tprintf(TEXT("PARA TESTES DE COMS COM GATEWAY E INICIALIZAÇÃO-> Startgame? (1)"));
 	_tscanf_s(_T("%d"), &resp);
 	if (resp == 1) {
+		start_Jogo();
 
 		SetEvent(eGameStart);//sinaliza gateway de alterações atravez do evento
 		ResetEvent(eGameStart);//fecha a sinalização do evento
@@ -169,29 +171,54 @@ void TrataComando(Command temp) {
 		CopyMemory(pGameView->player[temp.id].username,temp.username, sizeof(temp.username));
 		break;
 	case LEFT:
-		
+		movePlayer(&pGameView->player[temp.id], -1, 0);
 		break;
 	case RIGHT:
-
+		movePlayer(&pGameView->player[temp.id], 1, 0);
 		break;
 	case UP:
-
+		movePlayer(&pGameView->player[temp.id], 0, -1);
 		break;
 	case DOWN:
-
+		movePlayer(&pGameView->player[temp.id], 0, 1);
 		break;
 	case SHOT: //dispara tiro
-
+		shot(&pGameView->player[temp.id]);
 		break;
 	default:
 		_tprintf(TEXT("\n[TrataComando] Leitura: %d %d %hs\n"), temp.id, temp.cmd, temp.username);
 
 		break;
 	}
+
 //	SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
 	//ResetEvent(eGameUpdate);//fecha a sinalização do evento
 
 	ReleaseMutex(mGameAcess); //liberta mutex
+	
+}
+
+void movePlayer(Player *p, int x, int y) {
+
+	p->nave.e.x += x;
+	p->nave.e.y += y;
+	/*
+	for (int i = 0; i < pGameView->nPlayers; i++) {
+		if (p.id == id) {
+
+		}
+	}
+	*/
+}
+
+void shot(Player *p) {
+	for (int i = 0; i < 100; i++) {
+		if (pGameView->tiros[i].e.id[0] == 'i') {
+			pGameView->tiros[i].e.id[0] = '|';
+			pGameView->tiros[i].e.x = p->nave.e.x + p->nave.e.largura/2;
+			pGameView->tiros[i].e.y = p->nave.e.y - 1;
+		}
+	}
 	
 }
 #pragma endregion
@@ -286,6 +313,7 @@ void start_Jogo() {
 
 	for (int i = pGameView->nNavesEsquivas; i < 30; i++)
 		pGameView->navesesquivas[i].vida = 0;
+#pragma endregion
 
 	for (int i = 0; i < 100; i++) {
 		pGameView->tiros[i].e.id[0] = 'i';
@@ -297,9 +325,25 @@ void start_Jogo() {
 		pGameView->powerups[i].e.id[0] = 'i';
 	}
 
+
+#pragma region Player
+
+	for (int i = 0; i < pGameView->nPlayers; i++) {
+		pGameView->player[i].nave.vida = 1;
+		pGameView->player[i].nave.e.altura = 3;
+		pGameView->player[i].nave.e.largura = 3;
+		pGameView->player[i].nave.e.id[0] = 'P';
+		pGameView->player[i].nave.e.id[1] = (i + 1) / 10 + '0';
+		pGameView->player[i].nave.e.id[2] = (i + 1) % 10 + '0';
+	
+		pGameView->player[i].nave.e.y = 47; // (int)pGameView->maxY *0.8;
+		pGameView->player[i].nave.e.x = pGameView->maxX / 2;
+	}
+
+	for (int i = pGameView->nPlayers; i < 5; i++)
+		pGameView->player[i].nave.vida = 0;
 #pragma endregion
 
-	
 
 	ReleaseMutex(mGameAcess);
 
@@ -422,6 +466,14 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 			}
 		}
 
+		for (int i = 0; i < pGameView->nPlayers; i++) {
+			for (int j = pGameView->player[i].nave.e.x; j < (pGameView->player[i].nave.e.x + pGameView->player[i].nave.e.largura); j++) {
+				for (int k = pGameView->player[i].nave.e.y; k < (pGameView->player[i].nave.e.y + pGameView->player[i].nave.e.altura); k++) {
+					Pmapa[j][k] = 'P';
+				}
+			}
+		}
+
 
 		for (int i = 0; i < 20; i++) {
 					if ((pGameView->powerups[i].e.id[0] != 'i')) {
@@ -432,6 +484,12 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 		for (int i = 0; i < 20; i++) {
 			if ((pGameView->bombas[i].e.id[0] != 'i')) {
 				Pmapa[pGameView->bombas[i].e.x][pGameView->bombas[i].e.y] = pGameView->bombas[i].e.id[0];
+			}
+		}
+
+		for (int i = 0; i < 100; i++) {
+			if ((pGameView->tiros[i].e.id[0] != 'i')) {
+				Pmapa[pGameView->tiros[i].e.x][pGameView->tiros[i].e.y] = pGameView->tiros[i].e.id[0];
 			}
 		}
 			
