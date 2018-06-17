@@ -9,7 +9,7 @@ BOOL(*wrtMSG)(Command);
 pBuff(*rbuff)();
 HMODULE hDLL;
 HANDLE hThreadListener, eGameUpdate, mGameAcess, hThreadGame, eGameStart;
-HANDLE hThreadNaveEsquiva, hThreadNaveBasica, hThreadNaveBombas;
+HANDLE hThreadNaveEsquiva, hThreadNaveBasica, hThreadNaveBombas, hThreadTiros;
 
 //Jogo gameData;
 HANDLE hGame;
@@ -214,9 +214,10 @@ void movePlayer(Player *p, int x, int y) {
 void shot(Player *p) {
 	for (int i = 0; i < 100; i++) {
 		if (pGameView->tiros[i].e.id[0] == 'i') {
-			pGameView->tiros[i].e.id[0] = '|';
+			pGameView->tiros[i].e.id[0] = 'l';
 			pGameView->tiros[i].e.x = p->nave.e.x + p->nave.e.largura/2;
 			pGameView->tiros[i].e.y = p->nave.e.y - 1;
+			return;
 		}
 	}
 	
@@ -314,6 +315,7 @@ void start_Jogo() {
 	for (int i = pGameView->nNavesEsquivas; i < 30; i++)
 		pGameView->navesesquivas[i].vida = 0;
 #pragma endregion
+	pGameView->velTiro = 1000;
 
 	for (int i = 0; i < 100; i++) {
 		pGameView->tiros[i].e.id[0] = 'i';
@@ -330,6 +332,7 @@ void start_Jogo() {
 
 	for (int i = 0; i < pGameView->nPlayers; i++) {
 		pGameView->player[i].nave.vida = 1;
+		pGameView->player[i].nvidas = 1;
 		pGameView->player[i].nave.e.altura = 3;
 		pGameView->player[i].nave.e.largura = 3;
 		pGameView->player[i].nave.e.id[0] = 'P';
@@ -374,6 +377,11 @@ DWORD WINAPI thread_Jogo(LPVOID nave) {
 
 	hThreadNaveBombas = CreateThread(NULL, 0, thread_bombas, NULL, 0, 0); //inicia thread para naves basicas
 	if (hThreadNaveBombas == NULL) {
+		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
+		return 0;
+	}
+	hThreadTiros = CreateThread(NULL, 0, thread_tiros, NULL, 0, 0); //inicia thread para naves basicas
+	if (hThreadTiros == NULL) {
 		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
 		return 0;
 	}
@@ -489,7 +497,7 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 
 		for (int i = 0; i < 100; i++) {
 			if ((pGameView->tiros[i].e.id[0] != 'i')) {
-				Pmapa[pGameView->tiros[i].e.x][pGameView->tiros[i].e.y] = pGameView->tiros[i].e.id[0];
+				Pmapa[pGameView->tiros[i].e.x][pGameView->tiros[i].e.y] = 'l';
 			}
 		}
 			
@@ -590,20 +598,17 @@ bool CanMoveInvader(int x, int y, int xl, int ya, char id[]) {
 
 void verifyColision(Tiro *t) {
 	int i, y, x, l, a;
-
 	for (i = 0; i < pGameView->nNavesNormais; i++) {
 		y = pGameView->navesnormais[i].e.y;
 		x= pGameView->navesnormais[i].e.x;
 		l = pGameView->navesnormais[i].e.largura;
 		a = pGameView->navesnormais[i].e.altura;
-		
 		if (t->e.y >= y && t->e.y < y + a) {
 			if (t->e.x >= x && t->e.x < x + l) {
 				pGameView->navesnormais[i].vida -= 1;
 				t->e.id[0] = 'i';
 			}
 		}
-	
 	}
 
 	for (i = 0; i < pGameView->nNavesEsquivas; i++) {
@@ -634,6 +639,7 @@ void verifyColisionB(Bomba *b) {
 		if (b->e.y >= y && b->e.y < y + a) {
 			if (b->e.x >= x && b->e.x < x + l) {
 				pGameView->player[i].nave.vida -= 1;
+				b->e.id[0] = 'i';
 			}
 		}
 

@@ -44,14 +44,14 @@ typedef struct {
 typedef struct {
 	TCHAR name;
 	int efect;
+	int time;
 	Elemento e;
 }PowerUP;
 
 typedef struct {
 	char username[20];
 	int id;
-	int powerup;
-	int tpowerup;
+	PowerUP powerups[10];
 	Nave nave;
 	int points;
 	int nvidas;
