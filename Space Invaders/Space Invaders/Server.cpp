@@ -163,6 +163,9 @@ void TrataComando(Command temp) {
 		
 	//trata de tudo o que tem a ver com o comando;
 	//TODO bla bla bla
+	int x = 0;
+	int y = 0;
+
 	switch (temp.cmd) {
 	case 0:
 
@@ -171,16 +174,24 @@ void TrataComando(Command temp) {
 		CopyMemory(pGameView->player[temp.id].username,temp.username, sizeof(temp.username));
 		break;
 	case LEFT:
-		movePlayer(&pGameView->player[temp.id], -1, 0);
+		if (Alcool(&pGameView->player[temp.id]))
+			x = 1;
+		else x = -1;
 		break;
 	case RIGHT:
-		movePlayer(&pGameView->player[temp.id], 1, 0);
+		if (Alcool(&pGameView->player[temp.id]))
+			x = -1;
+		else x = 1;
 		break;
 	case UP:
-		movePlayer(&pGameView->player[temp.id], 0, -1);
+		if (Alcool(&pGameView->player[temp.id]))
+			y = -1;
+		else y = 1;
 		break;
 	case DOWN:
-		movePlayer(&pGameView->player[temp.id], 0, 1);
+		if (Alcool(&pGameView->player[temp.id]))
+			y = 1;
+		else y = -1;
 		break;
 	case SHOT: //dispara tiro
 		shot(&pGameView->player[temp.id]);
@@ -190,6 +201,7 @@ void TrataComando(Command temp) {
 
 		break;
 	}
+	movePlayer(&pGameView->player[temp.id], x, y);
 
 //	SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
 	//ResetEvent(eGameUpdate);//fecha a sinalização do evento
@@ -198,16 +210,35 @@ void TrataComando(Command temp) {
 	
 }
 
-void movePlayer(Player *p, int x, int y) {
+bool Alcool(Player *p) {
+	for (int i = 0; i < 10; i++) {
+		if (p->powerups[i].e.id[0] == 'A')
+			return true;
+	}
+	return false;
+}
 
+void movePlayer(Player *p, int x, int y) {
+	int xl = x + p->nave.e.largura - 1;
+	int ya = y + p->nave.e.altura  - 1;
+	
+	if (x <= -1 || y <= pGameView->maxY*0.8)return;
+	if (xl > pGameView->maxX || ya > pGameView->maxY) return;
+
+	for (int i = 0; i < pGameView->nPlayers; i++) {
+		if (p->id != pGameView->player[i].id) {
+			int x2 = pGameView->player[i].nave.e.x;
+			int x2l = x2 + pGameView->player[i].nave.e.largura - 1;
+			int y2 = pGameView->player[i].nave.e.y;
+			int y2a = y2 + pGameView->player[i].nave.e.altura - 1;
+			if ((y >= y2 && y <= y2a) || (ya >= y2 && ya <= y2a) || (y2 >= y && y2 <= ya) || (y2a >= y && y2a <= ya))
+				if ((x >= x2 && x <= x2l) || (xl >= x2 && xl <= x2l) || (x2 >= x && x2 <= xl) || (x2l >= x && x2l <= xl))
+					return;
+		}
+	}
 	p->nave.e.x += x;
 	p->nave.e.y += y;
 	/*
-	for (int i = 0; i < pGameView->nPlayers; i++) {
-		if (p.id == id) {
-
-		}
-	}
 	*/
 }
 
@@ -227,7 +258,6 @@ void shot(Player *p) {
 #pragma region Jogo
 
 #pragma region Start
-
 void start_Jogo() {
 
 	WaitForSingleObject(mGameAcess, INFINITE);
@@ -315,18 +345,32 @@ void start_Jogo() {
 	for (int i = pGameView->nNavesEsquivas; i < 30; i++)
 		pGameView->navesesquivas[i].vida = 0;
 #pragma endregion
+
+#pragma region Tiro
+
 	pGameView->velTiro = 1000;
 
 	for (int i = 0; i < 100; i++) {
 		pGameView->tiros[i].e.id[0] = 'i';
 	}
+
+#pragma endregion
+
+#pragma region Bombas
+
 	for (int i = 0; i < 20; i++) {
 		pGameView->bombas[i].e.id[0] = 'i';
 	}
+
+#pragma endregion
+	
+#pragma region PowerUps
+
 	for (int i = 0; i < 20; i++) {
 		pGameView->powerups[i].e.id[0] = 'i';
 	}
 
+#pragma endregion
 
 #pragma region Player
 
@@ -347,20 +391,15 @@ void start_Jogo() {
 		pGameView->player[i].nave.vida = 0;
 #pragma endregion
 
-
 	ReleaseMutex(mGameAcess);
-
-
-
 	
 	//TODO-> TRATAMENTO DE JOGO, POWERUPS E TIROS ATACANTES
 
 	return;
 }
+#pragma endregion
 
-
-
-#pragma region Create Threads
+#pragma region Threads
 DWORD WINAPI thread_Jogo(LPVOID nave) {
 
 	hThreadNaveEsquiva = CreateThread(NULL, 0, thread_esquiva, NULL, 0, 0); //inicia thread para naves esquivas
@@ -388,12 +427,7 @@ DWORD WINAPI thread_Jogo(LPVOID nave) {
 
 	return 0;
 }
-#pragma endregion
 
-
-#pragma endregion
-
-#pragma region Naves
 DWORD WINAPI thread_basica(LPVOID nave) {
 
 	while (pGameView->nNavesNormais > 0) {
@@ -576,6 +610,90 @@ DWORD WINAPI thread_esquiva(LPVOID nave) {
 	return 0;
 }
 
+DWORD WINAPI thread_tiros(LPVOID data) {
+	while (1) {
+		Sleep(pGameView->velTiro);
+		WaitForSingleObject(mGameAcess,INFINITE);
+		for (int i = 0; i < 100; i++) {
+			if ((pGameView->tiros[i].e.id[0] != 'i')) {
+				pGameView->tiros[i].e.y -= 1;
+				verifyColision(&pGameView->tiros[i]);
+			}
+		}
+		ReleaseMutex(mGameAcess);
+		SetEvent(eGameUpdate);		//sinaliza gateway de alterações atravez do evento
+									
+		ResetEvent(eGameUpdate);	//fecha a sinalização do evento
+	}
+	return 0;
+}
+
+DWORD WINAPI thread_bombas(LPVOID data) {
+	int random;
+	srand((int)time(NULL));
+	while (1) {
+		Sleep(pGameView->velPoweupBomba);
+		WaitForSingleObject(mGameAcess, INFINITE);
+
+#pragma region Bombas
+
+		for (int i = 0; i < 20; i++) {
+			if ((pGameView->bombas[i].e.id[0] != 'i')) {
+				pGameView->bombas[i].e.y += 1;
+			}
+		}
+
+#pragma endregion
+
+#pragma region PowerUps
+
+		random = rand() % 100;
+		for (int i = 0; i < 20; i++) {
+			if ((pGameView->powerups[i].e.id[0] != 'i')) {
+				pGameView->powerups[i].e.y += 1;
+			}
+			else {
+				
+				if (random < pGameView->pPower) {
+					random = rand() % 10;
+					if (random == 0) {
+						pGameView->powerups[i].e.id[0] = 'V';
+					}
+					else if (random <= 2) {
+						random = rand() % 3;
+						if (random == 0)
+							pGameView->powerups[i].e.id[0] = 'G';
+						else if (random == 1)
+							pGameView->powerups[i].e.id[0] = 'B';
+						else if (random == 2)
+							pGameView->powerups[i].e.id[0] = 'A';
+					}
+					else {
+						random = rand() % 2;
+						if (random == 0)
+							pGameView->powerups[i].e.id[0] = 'E';
+						else if (random == 1)
+							pGameView->powerups[i].e.id[0] = 'M';
+					}
+					pGameView->powerups[i].e.x = rand() % pGameView->maxX-1;
+					pGameView->powerups[i].e.y = 0;
+					random=101;
+				}
+			}
+		}
+
+#pragma endregion
+		
+		ReleaseMutex(mGameAcess);
+		SetEvent(eGameUpdate);		//sinaliza gateway de alterações atravez do evento
+									//Sleep(100);
+		ResetEvent(eGameUpdate);	//fecha a sinalização do evento
+	}
+	return 0;
+}
+#pragma endregion
+
+#pragma region Naves
 bool CanMoveInvader(Nave *n, int x, int y) {
 	int xl = n->e.largura - 1 + x;
 	int ya = n->e.altura  - 1 + y;
@@ -617,11 +735,11 @@ void verifyColision(Tiro *t) {
 	for (i = 0; i < pGameView->nNavesNormais; i++) {
 		y = pGameView->navesnormais[i].e.y;
 		x= pGameView->navesnormais[i].e.x;
-		l = pGameView->navesnormais[i].e.largura;
-		a = pGameView->navesnormais[i].e.altura;
+		l = pGameView->navesnormais[i].e.largura - 1;
+		a = pGameView->navesnormais[i].e.altura - 1;
 		if (pGameView->navesnormais[i].vida > 0) {
-			if (t->e.y >= y && t->e.y < y + a) {
-				if (t->e.x >= x && t->e.x < x + l) {
+			if (t->e.y >= y && t->e.y <= y + a) {
+				if (t->e.x >= x && t->e.x <= x + l) {
 					pGameView->navesnormais[i].vida -= 1;
 					t->e.id[0] = 'i';
 				}
@@ -666,17 +784,6 @@ void verifyColisionB(Bomba *b) {
 
 }
 
-bool verifyID(char id[], char id2[]) {
-	for (int i = 0; i < 3; i++) {
-		if (id[i] != id2[i]) {
-			//_tprintf(_T("ID - False\n"));
-			return false;
-		}
-	}
-	//_tprintf(_T("ID - True\n"));
-	return true;
-}
-
 void setBomba(int x, int y) {
 	for (int i = 0; i < 20; i++) {
 		if ((pGameView->bombas[i].e.id[0] == 'i')) {
@@ -688,74 +795,16 @@ void setBomba(int x, int y) {
 	}
 }
 
+bool verifyID(char id[], char id2[]) {
+	for (int i = 0; i < 3; i++) {
+		if (id[i] != id2[i]) {
+			//_tprintf(_T("ID - False\n"));
+			return false;
+		}
+	}
+	//_tprintf(_T("ID - True\n"));
+	return true;
+}
 #pragma endregion
-
-DWORD WINAPI thread_tiros(LPVOID data) {
-	
-	while (1) {
-		Sleep(pGameView->velTiro);
-		WaitForSingleObject(mGameAcess,INFINITE);
-		for (int i = 0; i < 100; i++) {
-			if ((pGameView->tiros[i].e.id[0] != 'i')) {
-				pGameView->tiros[i].e.y -= 1;
-				verifyColision(&pGameView->tiros[i]);
-			}
-		}
-		ReleaseMutex(mGameAcess);
-		SetEvent(eGameUpdate);		//sinaliza gateway de alterações atravez do evento
-									
-		ResetEvent(eGameUpdate);	//fecha a sinalização do evento
-	}
-	return 0;
-}
-
-
-DWORD WINAPI thread_bombas(LPVOID data) {
-	int random;
-	srand((int)time(NULL));
-	while (1) {
-		Sleep(pGameView->velPoweupBomba);
-		WaitForSingleObject(mGameAcess, INFINITE);
-		for (int i = 0; i < 20; i++) {
-			if ((pGameView->bombas[i].e.id[0] != 'i')) {
-				pGameView->bombas[i].e.y += 1;
-			}
-		}
-		random = rand() % 100;
-		for (int i = 0; i < 20; i++) {
-			if ((pGameView->powerups[i].e.id[0] != 'i')) {
-				pGameView->powerups[i].e.y += 1;
-			}
-			else {
-				
-				if (random < pGameView->pPower) {
-					int random2 = rand() % 10;
-					if (random2 == 0) {
-						pGameView->powerups[i].e.id[0] = 'R';
-
-					}
-					else if (random2 <= 2) {
-						pGameView->powerups[i].e.id[0] = 'N';
-					}
-					else {
-						pGameView->powerups[i].e.id[0] = 'V';
-					}
-					pGameView->powerups[i].e.x = rand() % pGameView->maxX-1;
-					pGameView->powerups[i].e.y = 0;
-					random=101;
-				
-				}
-				
-			}
-		}
-		ReleaseMutex(mGameAcess);
-		SetEvent(eGameUpdate);		//sinaliza gateway de alterações atravez do evento
-									//Sleep(100);
-		ResetEvent(eGameUpdate);	//fecha a sinalização do evento
-
-	}
-	return 0;
-}
-
 
 #pragma endregion
