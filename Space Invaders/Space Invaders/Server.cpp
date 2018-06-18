@@ -268,7 +268,7 @@ void start_Jogo() {
 	bool auxLeft = true;
 	for (int i = 0; i < pGameView->nNavesNormais; i++) {
 		pGameView->navesnormais[i].i_desparo = rand() % pGameView->fBombas;
-		pGameView->navesnormais[i].velocidade = 1000 - 100 * (pGameView->dificuldade - 1);
+		pGameView->navesnormais[i].velocidade = 500 - 100 * (pGameView->dificuldade - 1);
 		pGameView->navesnormais[i].vida = 1;
 		pGameView->navesnormais[i].e.altura = 3;
 		pGameView->navesnormais[i].e.largura = 3;
@@ -308,7 +308,7 @@ void start_Jogo() {
 		pGameView->navesesquivas[i].e.id[2] = (i + 1) % 10 + '0';
 		pGameView->navesesquivas[i].e.y = auxY;
 		pGameView->navesesquivas[i].e.x = auxX;
-		pGameView->navesesquivas[i].velocidade = (1000 - 100 * (pGameView->dificuldade - 1))*1.1;
+		pGameView->navesesquivas[i].velocidade = (500 - 100 * (pGameView->dificuldade - 1))*1.1;
 		pGameView->navesesquivas[i].vida = 3;
 	}
 
@@ -449,8 +449,9 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 				}
 
 			}
-
 		}
+
+		/*
 #pragma region Print test
 
 
@@ -502,8 +503,7 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 			}
 		}
 
-#pragma endregion
-			
+
 	
 
 
@@ -513,6 +513,9 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 			}
 			_tprintf(TEXT("\n"));
 		}
+		#pragma endregion
+		*/
+
 		ReleaseMutex(mGameAcess);
 		SetEvent(eGameUpdate);		//sinaliza gateway de alterações atravez do evento
 									//Sleep(100);
@@ -566,6 +569,9 @@ DWORD WINAPI thread_esquiva(LPVOID nave) {
 		}
 	
 		ReleaseMutex(mGameAcess);
+		SetEvent(eGameUpdate);		//sinaliza gateway de alterações atravez do evento
+									//Sleep(100);
+		ResetEvent(eGameUpdate);	//fecha a sinalização do evento
 	}
 	return 0;
 }
@@ -696,6 +702,9 @@ DWORD WINAPI thread_tiros(LPVOID data) {
 			}
 		}
 		ReleaseMutex(mGameAcess);
+		SetEvent(eGameUpdate);		//sinaliza gateway de alterações atravez do evento
+									
+		ResetEvent(eGameUpdate);	//fecha a sinalização do evento
 	}
 	return 0;
 }
@@ -740,7 +749,9 @@ DWORD WINAPI thread_bombas(LPVOID data) {
 			}
 		}
 		ReleaseMutex(mGameAcess);
-	
+		SetEvent(eGameUpdate);		//sinaliza gateway de alterações atravez do evento
+									//Sleep(100);
+		ResetEvent(eGameUpdate);	//fecha a sinalização do evento
 
 	}
 	return 0;

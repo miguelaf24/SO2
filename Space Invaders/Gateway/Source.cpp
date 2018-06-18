@@ -103,9 +103,7 @@ void broadcast(Jogo gamedata) {
 			if (nb < MSGSIZE) {
 				_tprintf(TEXT("[ERRO] Nao concluiu escrita! (WriteFile)\n"));
 			}
-			else {
-				_tprintf(TEXT("[GATEWAY] Enviei %d bytes ao leitor...(WriteFile)\n"), nb);
-			}
+
 		}
 	}
 
@@ -117,14 +115,11 @@ DWORD WINAPI GameUpdateThread(LPVOID params) {
 
 	do {
 		WaitForSingleObject(eGameAcess, INFINITE);
-		_tprintf(TEXT("GameUpdateThread\n"));
 
 		gamedata = getGame();
 
 		broadcast(gamedata);//envia actualização a todos os players
 
-		_tprintf(TEXT("Read Gamedata, navenormalX= %d\n"), gamedata.navesnormais[14].e.x);
-		_tprintf(TEXT("Read Gamedata, navenormalY= %d\n"), gamedata.navesnormais[14].e.y);
 
 
 
@@ -229,9 +224,7 @@ BOOL GetLogin(HANDLE hPipeL, int PlayerID) {
 		_tprintf(TEXT("[ERRO] Nao concluiu escrita! (WriteFile)\n"));
 		return FALSE;
 	}
-	else {
-		_tprintf(TEXT("[GATEWAY] Enviei %d bytes ao leitor...(WriteFile)\n"), nll);
-	}
+
 	wrtMSG = (BOOL(*)(Command))GetProcAddress(hDLL, "WriteBuffer");
 	Command c;
 	strcpy_s(c.username, username);
