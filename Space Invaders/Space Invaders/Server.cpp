@@ -34,7 +34,7 @@ DWORD WINAPI thread_bombas(LPVOID data);
 void setBomba(int x, int y);
 void verifyColision(Tiro *t);
 void TrataComando(Command temp);
-bool CanMoveInvader(int x, int y, int xl, int ya, char id[]);
+bool CanMoveInvader(Nave *n, int x, int y);
 bool verifyID(char id[], char id2[]);
 void start_Jogo();
 void movePlayer(Player *p, int x, int y);
@@ -253,8 +253,8 @@ void start_Jogo() {
 		pGameView->nNavesEsquivas = 10;
 		break;
 	case 3:
-		pGameView->nNavesNormais = 30;
-		pGameView->nNavesEsquivas = 15;
+		pGameView->nNavesNormais = 9;
+		pGameView->nNavesEsquivas = 9;
 		break;
 	default:
 		break;
@@ -294,8 +294,8 @@ void start_Jogo() {
 	auxX = 0;
 	auxY = 18;
 	for (int i = 0; i < pGameView->nNavesEsquivas; i++) {
-		pGameView->navesesquivas[i].e.altura = 1;
-		pGameView->navesesquivas[i].e.largura = 1;
+		pGameView->navesesquivas[i].e.altura = 3;
+		pGameView->navesesquivas[i].e.largura = 3;
 		auxX += 8;
 		if (auxX + pGameView->navesesquivas[i].e.largura >= pGameView->maxX) {
 			auxY += 4;
@@ -435,7 +435,7 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 
 
 
-				if (CanMoveInvader(x, y, x + pGameView->navesnormais[i].e.largura - 1, y + pGameView->navesnormais[i].e.altura - 1, pGameView->navesnormais[i].e.id)) {
+				if (CanMoveInvader(&pGameView->navesnormais[i], x, y)) {
 
 					if (pGameView->navesnormais[i].e.x == 0) {
 						pGameView->navesnormais[i].isLeft = false;
@@ -451,7 +451,8 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 			}
 
 		}
-		
+#pragma region Print test
+
 
 		for (int i = 0; i < 51; i++) {
 			for (int j = 0; j < 201; j++) {
@@ -461,7 +462,7 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 		for (int i = 0; i < pGameView->nNavesNormais; i++) {
 			for (int j = pGameView->navesnormais[i].e.x; j < (pGameView->navesnormais[i].e.x + pGameView->navesnormais[i].e.largura); j++) {
 				for (int k = pGameView->navesnormais[i].e.y; k < (pGameView->navesnormais[i].e.y + pGameView->navesnormais[i].e.altura); k++) {
-					Pmapa[j][k] = 'N';
+					Pmapa[j][k] = pGameView->navesnormais[i].e.id[2];
 				}
 			}
 		}
@@ -469,7 +470,7 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 		for (int i = 0; i < pGameView->nNavesEsquivas; i++) {
 			for (int j = pGameView->navesesquivas[i].e.x; j < (pGameView->navesesquivas[i].e.x + pGameView->navesesquivas[i].e.largura); j++) {
 				for (int k = pGameView->navesesquivas[i].e.y; k < (pGameView->navesesquivas[i].e.y + pGameView->navesesquivas[i].e.altura); k++) {
-					Pmapa[j][k] = 'E';
+					Pmapa[j][k] = pGameView->navesesquivas[i].e.id[2];
 				}
 			}
 		}
@@ -500,6 +501,8 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 				Pmapa[pGameView->tiros[i].e.x][pGameView->tiros[i].e.y] = 'l';
 			}
 		}
+
+#pragma endregion
 			
 	
 
@@ -511,9 +514,9 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 			_tprintf(TEXT("\n"));
 		}
 		ReleaseMutex(mGameAcess);
-		SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
-							  //Sleep(100);
-		ResetEvent(eGameUpdate);//fecha a sinalização do evento
+		SetEvent(eGameUpdate);		//sinaliza gateway de alterações atravez do evento
+									//Sleep(100);
+		ResetEvent(eGameUpdate);	//fecha a sinalização do evento
 	}
 
 	return 0;
@@ -552,7 +555,7 @@ DWORD WINAPI thread_esquiva(LPVOID nave) {
 					default:
 						break;
 					}
-					if (CanMoveInvader(x, y, x + pGameView->navesesquivas[i].e.largura - 1, y + pGameView->navesesquivas[i].e.altura - 1, pGameView->navesesquivas[i].e.id)) {
+					if (CanMoveInvader(&pGameView->navesesquivas[i], x, y)){
 						pGameView->navesesquivas[i].e.y = y;
 						pGameView->navesesquivas[i].e.x = x;
 						break;
@@ -567,17 +570,24 @@ DWORD WINAPI thread_esquiva(LPVOID nave) {
 	return 0;
 }
 
-bool CanMoveInvader(int x, int y, int xl, int ya, char id[]) {
+bool CanMoveInvader(Nave *n, int x, int y) {
+	int xl = n->e.largura - 1 + x;
+	int ya = n->e.altura  - 1 + y;
+	char *id = n->e.id;
+
+	if (n->vida <= 0)return false;
+	
 	if (x <= -1 || y <= -1)return false;
 	if (xl > pGameView->maxX || ya > pGameView->maxY) return false;
+	
 	for (int i = 0; i < pGameView->nNavesNormais; i++) {
 		if (!verifyID(id, pGameView->navesnormais[i].e.id) && pGameView->navesnormais[i].vida>0) {
 			int x2 = pGameView->navesnormais[i].e.x;
 			int x2l = x2 + pGameView->navesnormais[i].e.largura - 1;
 			int y2 = pGameView->navesnormais[i].e.y;
 			int y2a = y2 + pGameView->navesnormais[i].e.altura - 1;
-			if ((y >= y2 && y <= y2a) || (ya >= y2 && ya <= y2a))
-				if ((x >= x2 && x <= x2l) || (xl >= x2 && xl <= x2l))
+			if ((y >= y2 && y <= y2a) || (ya >= y2 && ya <= y2a) || (y2 >= y && y2 <= ya) || (y2a >= y && y2a <= ya))
+				if ((x >= x2 && x <= x2l) || (xl >= x2 && xl <= x2l) || (x2 >= x && x2 <= xl) || (x2l >= x && x2l <= xl))
 					return false;
 		}
 	}
@@ -587,8 +597,8 @@ bool CanMoveInvader(int x, int y, int xl, int ya, char id[]) {
 			int x2l = x2 + pGameView->navesesquivas[i].e.largura - 1;
 			int y2 = pGameView->navesesquivas[i].e.y;
 			int y2a = y2 + pGameView->navesesquivas[i].e.altura - 1;
-			if ((y >= y2 && y <= y2a) || (ya >= y2 && ya <= y2a))
-				if ((x >= x2 && x <= x2l) || (xl >= x2 && xl <= x2l))
+			if ((y >= y2 && y <= y2a) || (ya >= y2 && ya <= y2a)	|| (y2 >= y && y2 <= ya) || (y2a >= y && y2a <= ya))
+				if ((x >= x2 && x <= x2l) || (xl >= x2 && xl <= x2l)|| (x2 >= x && x2 <= xl) || (x2l >= x && x2l <= xl))
 					return false;
 		}
 	}
