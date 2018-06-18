@@ -529,7 +529,6 @@ DWORD WINAPI thread_esquiva(LPVOID nave) {
 		for (int i = pGameView->nNavesEsquivas - 1; i > -1; i--) {
 			if (pGameView->navesesquivas[i].vida > 0) {
 
-
 				int random = rand() % 4;
 				for (int j = 0; j < 4; j++) {
 					int x = pGameView->navesesquivas[i].e.x;
@@ -572,7 +571,7 @@ bool CanMoveInvader(int x, int y, int xl, int ya, char id[]) {
 	if (x <= -1 || y <= -1)return false;
 	if (xl > pGameView->maxX || ya > pGameView->maxY) return false;
 	for (int i = 0; i < pGameView->nNavesNormais; i++) {
-		if (!verifyID(id, pGameView->navesnormais[i].e.id)) {
+		if (!verifyID(id, pGameView->navesnormais[i].e.id) && pGameView->navesnormais[i].vida>0) {
 			int x2 = pGameView->navesnormais[i].e.x;
 			int x2l = x2 + pGameView->navesnormais[i].e.largura - 1;
 			int y2 = pGameView->navesnormais[i].e.y;
@@ -583,7 +582,7 @@ bool CanMoveInvader(int x, int y, int xl, int ya, char id[]) {
 		}
 	}
 	for (int i = 0; i < pGameView->nNavesEsquivas; i++) {
-		if (!verifyID(id, pGameView->navesesquivas[i].e.id)) {
+		if (!verifyID(id, pGameView->navesesquivas[i].e.id) && pGameView->navesesquivas[i].vida>0) {
 			int x2 = pGameView->navesesquivas[i].e.x;
 			int x2l = x2 + pGameView->navesesquivas[i].e.largura - 1;
 			int y2 = pGameView->navesesquivas[i].e.y;
@@ -597,16 +596,19 @@ bool CanMoveInvader(int x, int y, int xl, int ya, char id[]) {
 }
 
 void verifyColision(Tiro *t) {
+	if (t->e.id[0] == 'i')return;
 	int i, y, x, l, a;
 	for (i = 0; i < pGameView->nNavesNormais; i++) {
 		y = pGameView->navesnormais[i].e.y;
 		x= pGameView->navesnormais[i].e.x;
 		l = pGameView->navesnormais[i].e.largura;
 		a = pGameView->navesnormais[i].e.altura;
-		if (t->e.y >= y && t->e.y < y + a) {
-			if (t->e.x >= x && t->e.x < x + l) {
-				pGameView->navesnormais[i].vida -= 1;
-				t->e.id[0] = 'i';
+		if (pGameView->navesnormais[i].vida > 0) {
+			if (t->e.y >= y && t->e.y < y + a) {
+				if (t->e.x >= x && t->e.x < x + l) {
+					pGameView->navesnormais[i].vida -= 1;
+					t->e.id[0] = 'i';
+				}
 			}
 		}
 	}
@@ -616,11 +618,12 @@ void verifyColision(Tiro *t) {
 		x = pGameView->navesesquivas[i].e.x;
 		l = pGameView->navesesquivas[i].e.largura;
 		a = pGameView->navesesquivas[i].e.altura;
-
-		if (t->e.y >= y && t->e.y < y + a) {
-			if (t->e.x >= x && t->e.x < x + l) {
-				pGameView->navesesquivas[i].vida -= 1;
-				t->e.id[0] = 'i';
+		if (pGameView->navesesquivas[i].vida > 0) {
+			if (t->e.y >= y && t->e.y < y + a) {
+				if (t->e.x >= x && t->e.x < x + l) {
+					pGameView->navesesquivas[i].vida -= 1;
+					t->e.id[0] = 'i';
+				}
 			}
 		}
 

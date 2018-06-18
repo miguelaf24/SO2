@@ -1,2 +1,5 @@
 ﻿  client.cpp
+c:\users\migue\source\repos\space invaders\so2\space invaders\client\client.cpp(56): warning C4302: 'type cast': truncation from 'LPSTR' to 'WORD'
+c:\users\migue\source\repos\space invaders\so2\space invaders\client\client.cpp(264): warning C4101: 'hdc': unreferenced local variable
+c:\users\migue\source\repos\space invaders\so2\space invaders\client\client.cpp(269): warning C4101: 'ret': unreferenced local variable
   Client.vcxproj -> C:\Users\migue\source\repos\Space Invaders\SO2\Space Invaders\Debug\Client.exe
