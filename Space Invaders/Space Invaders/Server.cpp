@@ -880,6 +880,8 @@ DWORD WINAPI thread_bombas(LPVOID data) {
 					pGameView->bombas[i].e.id[0] = 'i';
 				else
 					pGameView->bombas[i].e.y += 1;
+
+
 			}
 		}
 

@@ -21,7 +21,6 @@
 #define IDC_SLIDER_PLAYERLIFES          1008
 #define IDC_SLIDER_VELBOMB              1009
 #define IDC_SLIDER_VELTIRO              1010
-#define IDC_EDIT1                       1011
 #define IDM_ABOUT                       40001
 #define ID_EXIT                         40008
 #define ID_ABOUT                        40009
@@ -33,7 +32,7 @@
 // 
 #ifdef APSTUDIO_INVOKED
 #ifndef APSTUDIO_READONLY_SYMBOLS
-#define _APS_NEXT_RESOURCE_VALUE        114
+#define _APS_NEXT_RESOURCE_VALUE        115
 #define _APS_NEXT_COMMAND_VALUE         40013
 #define _APS_NEXT_CONTROL_VALUE         1012
 #define _APS_NEXT_SYMED_VALUE           101

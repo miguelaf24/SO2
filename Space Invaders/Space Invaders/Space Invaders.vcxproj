@@ -137,6 +137,7 @@
     <Image Include="..\..\..\..\..\source\repos\teste_g\teste_g\teste_g.ico" />
     <Image Include="icon1.ico" />
     <Image Include="Logo.bmp" />
+    <Image Include="png1.png" />
   </ItemGroup>
   <ItemGroup>
     <ResourceCompile Include="Server.rc" />
