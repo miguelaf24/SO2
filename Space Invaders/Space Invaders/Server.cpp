@@ -1,5 +1,9 @@
 #include "utils.h"
 #include "stdafx.h"
+#include "resource.h"
+
+#define MAX_LOADSTRING 100
+
 #pragma region Variáveis Globais
 BOOL(*StartBuff)(void);
 BOOL(*GetMSG)(pCommand);
@@ -10,6 +14,9 @@ pBuff(*rbuff)();
 HMODULE hDLL;
 HANDLE hThreadListener, eGameUpdate, mGameAcess, hThreadGame, eGameStart;
 HANDLE hThreadNaveEsquiva, hThreadNaveBasica, hThreadNaveBombas, hThreadTiros;
+HINSTANCE hInst;                                // current instance
+WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
+WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
 
 //Jogo gameData;
 HANDLE hGame;
@@ -40,10 +47,17 @@ void start_Jogo();
 void movePlayer(Player *p, int x, int y);
 void shot(Player *p);
 bool Alcool(Player *p);
+//UI FUNCS
+ATOM                MyRegisterClass(HINSTANCE hInstance);
+BOOL                InitInstance(HINSTANCE, int);
+LRESULT CALLBACK    WndProc(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK    About(HWND, UINT, WPARAM, LPARAM);
+INT_PTR CALLBACK    Dif(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam);
+
 #pragma endregion
 
-int _tmain(int argc, LPTSTR argv[]) {
-	int resp;
+int APIENTRY wWinMain(_In_ HINSTANCE hInstance,_In_opt_ HINSTANCE hPrevInstance,_In_ LPWSTR    lpCmdLine,_In_ int       nCmdShow)
+{
 
 	//DWORD threadId[]; //Id da thread a ser criada
 	//HANDLE hT[4] = (HANDLE *)malloc(4 * sizeof(HANDLE)); //HANDLE/ponteiro para a thread a ser criada
@@ -54,6 +68,17 @@ int _tmain(int argc, LPTSTR argv[]) {
 	_setmode(_fileno(stderr), _O_WTEXT);
 #endif
 	srand((int)time(NULL));
+
+	LoadStringW(hInstance, IDS_APP_TITLE, szTitle, MAX_LOADSTRING);
+	LoadStringW(hInstance, IDS_SPACEINVADERS, szWindowClass, MAX_LOADSTRING);
+	MyRegisterClass(hInstance);
+
+
+	// Perform application initialization:
+	if (!InitInstance(hInstance, nCmdShow))
+	{
+		return FALSE;
+	}
 
 	//DLL LOAD
 	hDLL = LoadLibrary(_T("SpaceDLL"));
@@ -97,7 +122,7 @@ int _tmain(int argc, LPTSTR argv[]) {
 		return 0;
 	}
 
-	_tprintf(TEXT("PARA TESTES DE COMS COM GATEWAY E INICIALIZAÇÃO-> Insira dificuldade (1,2,3)"));
+	/*_tprintf(TEXT("PARA TESTES DE COMS COM GATEWAY E INICIALIZAÇÃO-> Insira dificuldade (1,2,3)"));
 	_tscanf_s(_T("%d"), &resp);
 	pGameView->dificuldade = resp;
 	_tprintf(TEXT("PARA TESTES DE COMS COM GATEWAY E INICIALIZAÇÃO-> Startgame? (1)"));
@@ -115,11 +140,21 @@ int _tmain(int argc, LPTSTR argv[]) {
 			return 0;
 		}
 
+	}*/
+	HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDR_ACCELERATOR1));
+	MSG msg;
+
+	// Main message loop:
+	while (GetMessage(&msg, nullptr, 0, 0))
+	{
+		if (!TranslateAccelerator(msg.hwnd, hAccelTable, &msg))
+		{
+			TranslateMessage(&msg);
+			DispatchMessage(&msg);
+		}
 	}
-
-
 	
-	WaitForSingleObject(hThreadListener, INFINITE);
+	//WaitForSingleObject(hThreadListener, INFINITE);
 	CloseHandle(hThreadListener);
 	CloseHandle(hThreadGame);
 	CloseHandle(hThreadNaveBasica);
@@ -128,14 +163,213 @@ int _tmain(int argc, LPTSTR argv[]) {
 	
 	_tprintf(TEXT("[Thread Principal %d]Vou terminar..."), GetCurrentThreadId());
 	
-
+	return (int)msg.wParam;
 	return 0;
 }
 
+#pragma region GUI FUncs
+//
+//  FUNCTION: MyRegisterClass()
+//
+//  PURPOSE: Registers the window class.
+//
+ATOM MyRegisterClass(HINSTANCE hInstance)
+{
+	WNDCLASSEXW wcex;
+
+	wcex.cbSize = sizeof(WNDCLASSEX);
+
+	wcex.style = CS_HREDRAW | CS_VREDRAW;
+	wcex.lpfnWndProc = WndProc;
+	wcex.cbClsExtra = 0;
+	wcex.cbWndExtra = 0;
+	wcex.hInstance = hInstance;
+	wcex.hIcon = LoadIcon(hInstance, MAKEINTRESOURCE(IDI_ICON1));
+	wcex.hCursor = LoadCursor(nullptr, IDC_ARROW);
+	wcex.hbrBackground = (HBRUSH)(COLOR_WINDOW + 1);
+	wcex.lpszMenuName = MAKEINTRESOURCEW(IDR_MENU);
+	wcex.lpszClassName = szWindowClass;
+	wcex.hIconSm = LoadIcon(wcex.hInstance, MAKEINTRESOURCE(IDI_ICON1));
+
+	return RegisterClassExW(&wcex);
+}
+BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
+{
+	hInst = hInstance; // Store instance handle in our global variable
+
+	HWND hWnd = CreateWindowW(szWindowClass, szTitle, WS_OVERLAPPEDWINDOW,
+		CW_USEDEFAULT, 0, 800, 600, nullptr, nullptr, hInstance, nullptr);
+
+	if (!hWnd)
+	{
+		return FALSE;
+	}
+
+	ShowWindow(hWnd, nCmdShow);
+	UpdateWindow(hWnd);
+
+	return TRUE;
+}
+LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	HMENU menu = GetMenu(hWnd);
+	HWND hList = NULL;
+	switch (message)
+	{
+	case WM_INITDIALOG:
+		EnableMenuItem(menu, ID_TERMINATEGAME, MF_GRAYED);
+
+	case WM_COMMAND:
+	{
+		int wmId = LOWORD(wParam);
+		// Parse the menu selections:
+		switch (wmId)
+		{
+		case IDM_ABOUT:
+			DialogBox(hInst, MAKEINTRESOURCE(IDD_ABOUTBOX), hWnd, About);
+			break;
+		case IDM_EXIT:
+			DestroyWindow(hWnd);
+			break;
+
+		case ID_NEWGAME: //StartGame
+
+			if (pGameView->nPlayers == 0) {
+			
+				MessageBox(NULL, _T("No players connected."), _T("Unnable to start"), MB_OK | MB_ICONERROR| MB_TASKMODAL);
+
+			
+			}
+			else {
+			hList = CreateWindowEx(0, _T("listbox"), _T("LOG"), WS_CHILD | WS_VISIBLE | LBS_STANDARD | WS_CAPTION | LBS_HASSTRINGS, 0, 0, 400, 100, hWnd, (HMENU)1, NULL, 0);
+				EnableMenuItem(menu, ID_NEWGAME, MF_GRAYED);
+				EnableMenuItem(menu, ID_TERMINATEGAME, MF_ENABLED);
+				DialogBox(hInst, MAKEINTRESOURCE(IDD_DIFF), hWnd, Dif);
+			}
+			break;
+		case ID_TERMINATEGAME: //TermGame
+			EnableMenuItem(menu, ID_TERMINATEGAME, MF_GRAYED);
+			EnableMenuItem(menu, ID_NEWGAME, MF_ENABLED);
+			ShowWindow(hList, SW_HIDE);
+			break;
+		default:
+			return DefWindowProc(hWnd, message, wParam, lParam);
+		}
+	}
+	break;
+	case WM_PAINT:
+	{
+		PAINTSTRUCT ps;
+		HDC hdc = BeginPaint(hWnd, &ps);
+		// TODO: Add any drawing code that uses hdc here...
+		EndPaint(hWnd, &ps);
+	}
+	break;
+	case WM_DESTROY:
+		PostQuitMessage(0);
+		break;
+	default:
+		return DefWindowProc(hWnd, message, wParam, lParam);
+	}
+	return 0;
+}
+
+// Message handler for about box.
+INT_PTR CALLBACK About(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	UNREFERENCED_PARAMETER(lParam);
+	switch (message)
+	{
+	case WM_INITDIALOG:
+		return (INT_PTR)TRUE;
+
+	case WM_COMMAND:
+		if (LOWORD(wParam) == IDOK || LOWORD(wParam) == IDCANCEL)
+		{
+			EndDialog(hDlg, LOWORD(wParam));
+			return (INT_PTR)TRUE;
+		}
+		break;
+	}
+	return (INT_PTR)FALSE;
+}
+
+INT_PTR CALLBACK Dif(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
+{
+	LRESULT result;
+
+	UNREFERENCED_PARAMETER(lParam);
+	switch (message)
+	{
+	case WM_INITDIALOG:
+		CheckRadioButton(hDlg, IDC_RADIO1, IDC_RADIO3, IDC_RADIO1);
+		SendMessage(GetDlgItem(hDlg, IDC_SLIDER_BOMBFREQ), WM_USER + 5, (WPARAM)TRUE, (LPARAM)30);
+
+		SendMessage(GetDlgItem(hDlg, IDC_SLIDER_VELINV), WM_USER + 5, (WPARAM)TRUE, (LPARAM)50);
+
+		SendMessage(GetDlgItem(hDlg, IDC_SLIDER_POWERFREQ), WM_USER + 5, (WPARAM)TRUE, (LPARAM)20);
+
+		SendMessage(GetDlgItem(hDlg, IDC_SLIDER_POWERDUR), WM_USER + 5, (WPARAM)TRUE, (LPARAM)40);
+
+		SendMessage(GetDlgItem(hDlg, IDC_SLIDER_PLAYERLIFES), WM_USER + 5, (WPARAM)TRUE, (LPARAM)20);
+
+		SendMessage(GetDlgItem(hDlg, IDC_SLIDER_VELBOMB), WM_USER + 5, (WPARAM)TRUE, (LPARAM)60);
+
+		SendMessage(GetDlgItem(hDlg, IDC_SLIDER_VELTIRO), WM_USER + 5, (WPARAM)TRUE, (LPARAM)60);
+
+	case WM_COMMAND:
 
 
+		if (LOWORD(wParam) == IDOK)
+		{
+			if (IsDlgButtonChecked(hDlg, IDC_RADIO1)) {
+				pGameView->dificuldade = 1;
+			}
+			else if (IsDlgButtonChecked(hDlg, IDC_RADIO2)) {
+				pGameView->dificuldade = 2;
+			}
+			else {
+				pGameView->dificuldade = 3;
+			}
+			result = SendMessage(GetDlgItem(hDlg, IDC_SLIDER_VELINV), WM_USER, (WPARAM)0, 0);
+			pGameView->velNave = result;
+			result = SendMessage(GetDlgItem(hDlg, IDC_SLIDER_BOMBFREQ), WM_USER, (WPARAM)0, 0);
+			pGameView->fBombas = result;
+			result = SendMessage(GetDlgItem(hDlg, IDC_SLIDER_POWERFREQ), WM_USER, (WPARAM)0, 0);
+			pGameView->pPower = result;
+			result = SendMessage(GetDlgItem(hDlg, IDC_SLIDER_POWERDUR), WM_USER, (WPARAM)0, 0);
+			pGameView->DurPower = result;
+			result = SendMessage(GetDlgItem(hDlg, IDC_SLIDER_PLAYERLIFES), WM_USER, (WPARAM)0, 0);
+			pGameView->nVidasPlayer = result/10;
+			result = SendMessage(GetDlgItem(hDlg, IDC_SLIDER_VELBOMB), WM_USER, (WPARAM)0, 0);
+			pGameView->velPoweupBomba = result;
+			result = SendMessage(GetDlgItem(hDlg, IDC_SLIDER_VELTIRO), WM_USER, (WPARAM)0, 0);
+			pGameView->velTiro = result;
+	
+			start_Jogo();
 
+			SetEvent(eGameStart);//sinaliza gateway de alterações atravez do evento
+			ResetEvent(eGameStart);//fecha a sinalização do evento
+			SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
+			ResetEvent(eGameUpdate);//fecha a sinalização do evento
+			hThreadGame = CreateThread(NULL, 0, thread_Jogo, NULL, 0, 0);
+			if (hThreadGame == NULL) {
+				_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
+				return 0;
+			}
+			EndDialog(hDlg, LOWORD(wParam));
 
+			return (INT_PTR)TRUE;
+		}
+		else if (LOWORD(wParam) == IDCANCEL) {
+			EndDialog(hDlg, LOWORD(wParam));
+			return (INT_PTR)FALSE;
+		}
+		break;
+	}
+	return (INT_PTR)FALSE;
+}
+#pragma endregion
 #pragma region Buffer
 DWORD WINAPI ReadBufferThread(LPVOID params) {
 	
@@ -268,9 +502,8 @@ void start_Jogo() {
 #pragma region Mapa
 	pGameView->maxX = 50;
 	pGameView->maxY = 70;
-	pGameView->pPower = 50;
-	pGameView->fBombas = 50;
-	pGameView->velPoweupBomba = 1000;
+
+	
 #pragma endregion
 
 #pragma region Dificuldade
@@ -285,8 +518,8 @@ void start_Jogo() {
 		pGameView->nNavesEsquivas = 10;
 		break;
 	case 3:
-		pGameView->nNavesNormais = 9;
-		pGameView->nNavesEsquivas = 9;
+		pGameView->nNavesNormais = 30;
+		pGameView->nNavesEsquivas = 15;
 		break;
 	default:
 		break;
@@ -300,7 +533,7 @@ void start_Jogo() {
 	bool auxLeft = true;
 	for (int i = 0; i < pGameView->nNavesNormais; i++) {
 		pGameView->navesnormais[i].i_desparo = rand() % pGameView->fBombas;
-		pGameView->navesnormais[i].velocidade = 500 - 100 * (pGameView->dificuldade - 1);
+		
 		pGameView->navesnormais[i].vida = 1;
 		pGameView->navesnormais[i].e.altura = 3;
 		pGameView->navesnormais[i].e.largura = 3;
@@ -340,7 +573,6 @@ void start_Jogo() {
 		pGameView->navesesquivas[i].e.id[2] = (i + 1) % 10 + '0';
 		pGameView->navesesquivas[i].e.y = auxY;
 		pGameView->navesesquivas[i].e.x = auxX;
-		pGameView->navesesquivas[i].velocidade = (500 - 100 * (pGameView->dificuldade - 1))*1.1;
 		pGameView->navesesquivas[i].vida = 3;
 	}
 
@@ -350,7 +582,6 @@ void start_Jogo() {
 
 #pragma region Tiro
 
-	pGameView->velTiro = 1000;
 
 	for (int i = 0; i < 100; i++) {
 		pGameView->tiros[i].e.id[0] = 'i';
@@ -378,7 +609,7 @@ void start_Jogo() {
 
 	for (int i = 0; i < pGameView->nPlayers; i++) {
 		pGameView->player[i].nave.vida = 1;
-		pGameView->player[i].nvidas = 1;
+		pGameView->player[i].nvidas = pGameView->nVidasPlayer;
 		pGameView->player[i].nave.e.altura = 3;
 		pGameView->player[i].nave.e.largura = 3;
 		pGameView->player[i].nave.e.id[0] = 'P';
@@ -386,7 +617,7 @@ void start_Jogo() {
 		pGameView->player[i].nave.e.id[2] = (i + 1) % 10 + '0';
 	
 		pGameView->player[i].nave.e.y = pGameView->maxY-pGameView->player[i].nave.e.altura; // (int)pGameView->maxY *0.8;
-		pGameView->player[i].nave.e.x = pGameView->maxX / 2 + i;
+		pGameView->player[i].nave.e.x = pGameView->maxX / 2 + (i*4);
 	}
 
 	for (int i = pGameView->nPlayers; i < 5; i++)
@@ -434,7 +665,7 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 
 	while (pGameView->nNavesNormais > 0) {
 
-		Sleep((DWORD)pGameView->navesnormais->velocidade);
+		Sleep( (DWORD)(1000 - pGameView->velNave*10));
 		WaitForSingleObject(mGameAcess, INFINITE);
 
 		for (int i = pGameView->nNavesNormais - 1; i >= 0; i--) {
@@ -565,7 +796,7 @@ DWORD WINAPI thread_esquiva(LPVOID nave) {
 	//	Nave *n = gameData.navesesquivas;
 
 	while (pGameView->nNavesEsquivas > 0) {
-		Sleep((DWORD)pGameView->navesesquivas->velocidade);
+		Sleep((DWORD)(1000 - (pGameView->velNave * 10)*0.60));
 		WaitForSingleObject(mGameAcess, INFINITE);
 
 		for (int i = pGameView->nNavesEsquivas - 1; i > -1; i--) {
@@ -614,12 +845,16 @@ DWORD WINAPI thread_esquiva(LPVOID nave) {
 
 DWORD WINAPI thread_tiros(LPVOID data) {
 	while (1) {
-		Sleep(pGameView->velTiro);
+		Sleep((DWORD)(1000 - (pGameView->velTiro * 10)));
 		WaitForSingleObject(mGameAcess,INFINITE);
 		for (int i = 0; i < 100; i++) {
 			if ((pGameView->tiros[i].e.id[0] != 'i')) {
-				pGameView->tiros[i].e.y -= 1;
-				verifyColision(&pGameView->tiros[i]);
+				if (pGameView->tiros[i].e.y < 0)
+					pGameView->tiros[i].e.id[0] = 'i';
+				else {
+					pGameView->tiros[i].e.y -= 1;
+					verifyColision(&pGameView->tiros[i]);
+				}
 			}
 		}
 		ReleaseMutex(mGameAcess);
@@ -634,7 +869,7 @@ DWORD WINAPI thread_bombas(LPVOID data) {
 	int random;
 	srand((int)time(NULL));
 	while (1) {
-		Sleep(pGameView->velPoweupBomba);
+		Sleep((DWORD)(1000 - (pGameView->velPoweupBomba * 10)));
 		WaitForSingleObject(mGameAcess, INFINITE);
 
 #pragma region Bombas

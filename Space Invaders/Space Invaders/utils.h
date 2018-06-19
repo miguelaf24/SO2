@@ -36,7 +36,6 @@ typedef struct {
 	BOOL isLeft;
 	BOOL fimJanela;
 	int vida;
-	double velocidade;
 	int i_desparo;
 	Elemento e;
 }Nave;
@@ -70,15 +69,16 @@ typedef struct {
 	int nNavesEsquivas;
 	int nEsquivasVivas;
 	int nPlayers;
-	int disparo;
+	int velNave;
 	int dificuldade;
-	int velPoweupBomba;
-	int DurPower;
-	int velTiro;
+	int velPoweupBomba; //velocidade das bombas/powerups
+	int DurPower; //duracao powerup
+	int velTiro; //velocidade de tiros user
+	int nVidasPlayer;
 	int maxX; 
 	int maxY;
 	int fBombas;// Frequencia que caí bomba em cada nave
-	int pPower;
+	int pPower;//frequencia powerups
 	Tiro tiros[100];
 	Bomba bombas[20];
 	PowerUP powerups[20];

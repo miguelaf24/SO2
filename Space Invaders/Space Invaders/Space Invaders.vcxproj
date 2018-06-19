@@ -119,9 +119,27 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="Server.cpp" />
+    <ClCompile Include="stdafx.cpp" />
   </ItemGroup>
   <ItemGroup>
+    <ClInclude Include="resource.h" />
+    <ClInclude Include="stdafx.h" />
+    <ClInclude Include="targetver.h" />
     <ClInclude Include="utils.h" />
+  </ItemGroup>
+  <ItemGroup>
+    <Image Include="..\..\..\..\..\Desktop\Untitled-1.bmp" />
+    <Image Include="..\..\..\..\..\Desktop\Untitled-1.png" />
+    <Image Include="..\..\..\..\..\source\repos\teste_g\teste_g\bitmap1.bmp" />
+    <Image Include="..\..\..\..\..\source\repos\teste_g\teste_g\icon1.ico" />
+    <Image Include="..\..\..\..\..\source\repos\teste_g\teste_g\icon2.ico" />
+    <Image Include="..\..\..\..\..\source\repos\teste_g\teste_g\small.ico" />
+    <Image Include="..\..\..\..\..\source\repos\teste_g\teste_g\teste_g.ico" />
+    <Image Include="icon1.ico" />
+    <Image Include="Logo.bmp" />
+  </ItemGroup>
+  <ItemGroup>
+    <ResourceCompile Include="Server.rc" />
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
