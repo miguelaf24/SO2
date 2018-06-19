@@ -1,5 +1,5 @@
 #include "utils.h"
-
+#include "stdafx.h"
 #pragma region Variáveis Globais
 BOOL(*StartBuff)(void);
 BOOL(*GetMSG)(pCommand);
@@ -39,6 +39,7 @@ bool verifyID(char id[], char id2[]);
 void start_Jogo();
 void movePlayer(Player *p, int x, int y);
 void shot(Player *p);
+bool Alcool(Player *p);
 #pragma endregion
 
 int _tmain(int argc, LPTSTR argv[]) {
@@ -175,23 +176,23 @@ void TrataComando(Command temp) {
 		break;
 	case LEFT:
 		if (Alcool(&pGameView->player[temp.id]))
-			x = 1;
-		else x = -1;
+			x += 1;
+		else x -= 1;
 		break;
 	case RIGHT:
 		if (Alcool(&pGameView->player[temp.id]))
-			x = -1;
-		else x = 1;
+			x -= 1;
+		else x += 1;
 		break;
 	case UP:
 		if (Alcool(&pGameView->player[temp.id]))
-			y = -1;
-		else y = 1;
+			y += 1;
+		else y -= 1;
 		break;
 	case DOWN:
 		if (Alcool(&pGameView->player[temp.id]))
-			y = 1;
-		else y = -1;
+			y -= 1;
+		else y += 1;
 		break;
 	case SHOT: //dispara tiro
 		shot(&pGameView->player[temp.id]);
@@ -211,6 +212,7 @@ void TrataComando(Command temp) {
 }
 
 bool Alcool(Player *p) {
+	return false;
 	for (int i = 0; i < 10; i++) {
 		if (p->powerups[i].e.id[0] == 'A')
 			return true;
@@ -222,8 +224,8 @@ void movePlayer(Player *p, int x, int y) {
 	int xl = x + p->nave.e.largura - 1;
 	int ya = y + p->nave.e.altura  - 1;
 	
-	if (x <= -1 || y <= pGameView->maxY*0.8)return;
-	if (xl > pGameView->maxX || ya > pGameView->maxY) return;
+	if ((p->nave.e.y + ya) <= 0 || (p->nave.e.y + y) <= pGameView->maxY*0.8)return;
+	if (p->nave.e.x +xl >= pGameView->maxX || p->nave.e.x+x <0|| p->nave.e.y +ya >= pGameView->maxY || p->nave.e.y+ya<=0) return;
 
 	for (int i = 0; i < pGameView->nPlayers; i++) {
 		if (p->id != pGameView->player[i].id) {
@@ -265,9 +267,9 @@ void start_Jogo() {
 
 #pragma region Mapa
 	pGameView->maxX = 50;
-	pGameView->maxY = 200;
+	pGameView->maxY = 70;
 	pGameView->pPower = 50;
-	pGameView->fBombas = 100;
+	pGameView->fBombas = 50;
 	pGameView->velPoweupBomba = 1000;
 #pragma endregion
 
@@ -383,8 +385,8 @@ void start_Jogo() {
 		pGameView->player[i].nave.e.id[1] = (i + 1) / 10 + '0';
 		pGameView->player[i].nave.e.id[2] = (i + 1) % 10 + '0';
 	
-		pGameView->player[i].nave.e.y = 47; // (int)pGameView->maxY *0.8;
-		pGameView->player[i].nave.e.x = pGameView->maxX / 2;
+		pGameView->player[i].nave.e.y = pGameView->maxY-pGameView->player[i].nave.e.altura; // (int)pGameView->maxY *0.8;
+		pGameView->player[i].nave.e.x = pGameView->maxX / 2 + i;
 	}
 
 	for (int i = pGameView->nPlayers; i < 5; i++)
@@ -638,8 +640,11 @@ DWORD WINAPI thread_bombas(LPVOID data) {
 #pragma region Bombas
 
 		for (int i = 0; i < 20; i++) {
-			if ((pGameView->bombas[i].e.id[0] != 'i')) {
-				pGameView->bombas[i].e.y += 1;
+			if ((pGameView->bombas[i].e.id[0] == 'b')) {
+				if (pGameView->bombas[i].e.y > pGameView->maxY)
+					pGameView->bombas[i].e.id[0] = 'i';
+				else
+					pGameView->bombas[i].e.y += 1;
 			}
 		}
 
@@ -650,7 +655,10 @@ DWORD WINAPI thread_bombas(LPVOID data) {
 		random = rand() % 100;
 		for (int i = 0; i < 20; i++) {
 			if ((pGameView->powerups[i].e.id[0] != 'i')) {
-				pGameView->powerups[i].e.y += 1;
+				if (pGameView->powerups[i].e.y > pGameView->maxY)
+					pGameView->powerups[i].e.id[0] = 'i';
+				else
+					pGameView->powerups[i].e.y += 1;
 			}
 			else {
 				
