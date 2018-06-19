@@ -61,14 +61,18 @@ typedef struct {
 }Bomba;
 typedef struct {
 	Elemento e;
+	int player;
 }Tiro;
 
 typedef struct {
+	BOOL gameover;
+	BOOL whoWins;
 	int nNavesNormais;
 	int nNormaisVivas;
 	int nNavesEsquivas;
 	int nEsquivasVivas;
 	int nPlayers;
+	int nPlayersVivos;
 	int velNave;
 	int dificuldade;
 	int velPoweupBomba; //velocidade das bombas/powerups

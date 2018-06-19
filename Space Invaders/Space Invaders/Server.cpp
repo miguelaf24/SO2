@@ -29,7 +29,6 @@ char Pmapa[51][201];
 DWORD WINAPI ReadBufferThread(LPVOID params);
 DWORD WINAPI thread_basica(LPVOID nave);
 DWORD WINAPI thread_esquiva(LPVOID nave);
-DWORD WINAPI thread_Jogo(LPVOID nave);
 DWORD WINAPI thread_tiros(LPVOID data);
 DWORD WINAPI thread_bombas(LPVOID data);
 
@@ -47,6 +46,10 @@ void start_Jogo();
 void movePlayer(Player *p, int x, int y);
 void shot(Player *p);
 bool Alcool(Player *p);
+void verifyColisionB(Bomba *b);
+void bombas(bool change = false);
+BOOL start_threads();
+void GameOver(BOOL b);
 //UI FUNCS
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
@@ -217,6 +220,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_INITDIALOG:
+		pGameView->nPlayers = 0;
+		pGameView->nPlayersVivos = 0;
 		EnableMenuItem(menu, ID_TERMINATEGAME, MF_GRAYED);
 
 	case WM_COMMAND:
@@ -302,6 +307,7 @@ INT_PTR CALLBACK Dif(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 	switch (message)
 	{
 	case WM_INITDIALOG:
+		
 		CheckRadioButton(hDlg, IDC_RADIO1, IDC_RADIO3, IDC_RADIO1);
 		SendMessage(GetDlgItem(hDlg, IDC_SLIDER_BOMBFREQ), WM_USER + 5, (WPARAM)TRUE, (LPARAM)30);
 
@@ -352,9 +358,9 @@ INT_PTR CALLBACK Dif(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 			ResetEvent(eGameStart);//fecha a sinalização do evento
 			SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
 			ResetEvent(eGameUpdate);//fecha a sinalização do evento
-			hThreadGame = CreateThread(NULL, 0, thread_Jogo, NULL, 0, 0);
-			if (hThreadGame == NULL) {
-				_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
+			
+			if (!start_threads()) {
+				_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting threads\n %d  \n"), GetLastError());
 				return 0;
 			}
 			EndDialog(hDlg, LOWORD(wParam));
@@ -405,6 +411,7 @@ void TrataComando(Command temp) {
 	case 0:
 
 		pGameView->nPlayers++;
+		pGameView->nPlayersVivos++;
 		pGameView->player[temp.id].id = temp.id;
 		CopyMemory(pGameView->player[temp.id].username,temp.username, sizeof(temp.username));
 		break;
@@ -437,12 +444,14 @@ void TrataComando(Command temp) {
 		break;
 	}
 	movePlayer(&pGameView->player[temp.id], x, y);
-
+	bombas();
 //	SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
 	//ResetEvent(eGameUpdate);//fecha a sinalização do evento
 
 	ReleaseMutex(mGameAcess); //liberta mutex
-	
+	SetEvent(eGameUpdate);		//sinaliza gateway de alterações atravez do evento
+								//Sleep(100);
+	ResetEvent(eGameUpdate);	//fecha a sinalização do evento
 }
 
 bool Alcool(Player *p) {
@@ -455,14 +464,16 @@ bool Alcool(Player *p) {
 }
 
 void movePlayer(Player *p, int x, int y) {
+	x += p->nave.e.x;
+	y += p->nave.e.y;
 	int xl = x + p->nave.e.largura - 1;
 	int ya = y + p->nave.e.altura  - 1;
 	
-	if ((p->nave.e.y + ya) <= 0 || (p->nave.e.y + y) <= pGameView->maxY*0.8)return;
-	if (p->nave.e.x +xl >= pGameView->maxX || p->nave.e.x+x <0|| p->nave.e.y +ya >= pGameView->maxY || p->nave.e.y+ya<=0) return;
+	if ( ya<= 0 || y <= pGameView->maxY*0.8)return;
+	if (xl >= pGameView->maxX || x <0|| ya >= pGameView->maxY || ya<=0) return;
 
 	for (int i = 0; i < pGameView->nPlayers; i++) {
-		if (p->id != pGameView->player[i].id) {
+		if (p->id != pGameView->player[i].id && pGameView->player[i].nvidas > 0) {
 			int x2 = pGameView->player[i].nave.e.x;
 			int x2l = x2 + pGameView->player[i].nave.e.largura - 1;
 			int y2 = pGameView->player[i].nave.e.y;
@@ -472,8 +483,8 @@ void movePlayer(Player *p, int x, int y) {
 					return;
 		}
 	}
-	p->nave.e.x += x;
-	p->nave.e.y += y;
+	p->nave.e.x = x;
+	p->nave.e.y = y;
 	/*
 	*/
 }
@@ -484,8 +495,10 @@ void shot(Player *p) {
 			pGameView->tiros[i].e.id[0] = 'l';
 			pGameView->tiros[i].e.x = p->nave.e.x + p->nave.e.largura/2;
 			pGameView->tiros[i].e.y = p->nave.e.y - 1;
+			pGameView->tiros[i].player = p->id;
 			return;
 		}
+
 	}
 	
 }
@@ -524,6 +537,9 @@ void start_Jogo() {
 	default:
 		break;
 	}
+
+	pGameView->nNormaisVivas = pGameView->nNavesNormais;
+	pGameView->nEsquivasVivas = pGameView->nNavesEsquivas;
 #pragma endregion
 
 #pragma region Naves Normais
@@ -608,7 +624,7 @@ void start_Jogo() {
 #pragma region Player
 
 	for (int i = 0; i < pGameView->nPlayers; i++) {
-		pGameView->player[i].nave.vida = 1;
+		pGameView->player[i].points = 0;
 		pGameView->player[i].nvidas = pGameView->nVidasPlayer;
 		pGameView->player[i].nave.e.altura = 3;
 		pGameView->player[i].nave.e.largura = 3;
@@ -633,32 +649,31 @@ void start_Jogo() {
 #pragma endregion
 
 #pragma region Threads
-DWORD WINAPI thread_Jogo(LPVOID nave) {
+BOOL start_threads() {
 
 	hThreadNaveEsquiva = CreateThread(NULL, 0, thread_esquiva, NULL, 0, 0); //inicia thread para naves esquivas
 	if (hThreadNaveEsquiva == NULL) {
 		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
-		return 0;
+		return FALSE;
 	}
 
 	hThreadNaveBasica = CreateThread(NULL, 0, thread_basica, NULL, 0, 0); //inicia thread para naves basicas
 	if (hThreadNaveBasica == NULL) {
 		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
-		return 0;
+		return FALSE;
 	}
 
 	hThreadNaveBombas = CreateThread(NULL, 0, thread_bombas, NULL, 0, 0); //inicia thread para naves basicas
 	if (hThreadNaveBombas == NULL) {
 		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
-		return 0;
+		return FALSE;
 	}
 	hThreadTiros = CreateThread(NULL, 0, thread_tiros, NULL, 0, 0); //inicia thread para naves basicas
 	if (hThreadTiros == NULL) {
 		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
-		return 0;
+		return FALSE;
 	}
-
-	return 0;
+	return TRUE;
 }
 
 DWORD WINAPI thread_basica(LPVOID nave) {
@@ -873,17 +888,7 @@ DWORD WINAPI thread_bombas(LPVOID data) {
 		WaitForSingleObject(mGameAcess, INFINITE);
 
 #pragma region Bombas
-
-		for (int i = 0; i < 20; i++) {
-			if ((pGameView->bombas[i].e.id[0] == 'b')) {
-				if (pGameView->bombas[i].e.y > pGameView->maxY)
-					pGameView->bombas[i].e.id[0] = 'i';
-				else
-					pGameView->bombas[i].e.y += 1;
-
-
-			}
-		}
+		bombas(true);
 
 #pragma endregion
 
@@ -938,6 +943,24 @@ DWORD WINAPI thread_bombas(LPVOID data) {
 }
 #pragma endregion
 
+void bombas(bool change) {
+
+	for (int i = 0; i < 20; i++) {
+		if ((pGameView->bombas[i].e.id[0] == 'b')) {
+			if (pGameView->bombas[i].e.y > pGameView->maxY) {
+				pGameView->bombas[i].e.id[0] = 'i';
+			}
+			else
+			{
+				if(change)
+					pGameView->bombas[i].e.y += 1;
+				verifyColisionB(&pGameView->bombas[i]);
+			}
+
+		}
+	}
+}
+
 #pragma region Naves
 bool CanMoveInvader(Nave *n, int x, int y) {
 	int xl = n->e.largura - 1 + x;
@@ -987,6 +1010,10 @@ void verifyColision(Tiro *t) {
 				if (t->e.x >= x && t->e.x <= x + l) {
 					pGameView->navesnormais[i].vida -= 1;
 					t->e.id[0] = 'i';
+					if (pGameView->navesnormais[i].vida < 1) {
+						pGameView->nNormaisVivas--;
+						pGameView->player[t->player].points += 5;
+					}
 				}
 			}
 		}
@@ -1002,17 +1029,26 @@ void verifyColision(Tiro *t) {
 				if (t->e.x >= x && t->e.x < x + l) {
 					pGameView->navesesquivas[i].vida -= 1;
 					t->e.id[0] = 'i';
+					if (pGameView->navesesquivas[i].vida < 1) {
+						pGameView->nEsquivasVivas--;
+						pGameView->player[t->player].points += 15;
+					}
 				}
 			}
 		}
 
 	}
+
+	if ((pGameView->nEsquivasVivas + pGameView->nNormaisVivas) < 1)
+		GameOver(FALSE);
+
 }
 
 void verifyColisionB(Bomba *b) {
 	int i, y, x, l, a;
 
 	for (i = 0; i < pGameView->nPlayers; i++) {
+
 		y = pGameView->player[i].nave.e.y;
 		x = pGameView->player[i].nave.e.x;
 		l = pGameView->player[i].nave.e.largura;
@@ -1020,12 +1056,34 @@ void verifyColisionB(Bomba *b) {
 
 		if (b->e.y >= y && b->e.y < y + a) {
 			if (b->e.x >= x && b->e.x < x + l) {
-				pGameView->player[i].nave.vida -= 1;
-				b->e.id[0] = 'i';
+				if (pGameView->player[i].nvidas > 0) {
+					b->e.id[0] = 'i';
+					pGameView->player[i].nvidas --;
+					if (pGameView->player[i].nvidas <= 0) {
+						pGameView->player[i].nave.e.id[0] = 'i';
+						pGameView->nPlayersVivos--;
+						if (pGameView->nPlayersVivos < 1)
+							GameOver(TRUE);
+					}
+				}
 			}
 		}
+	}
+}
+void GameOver(BOOL b) {
+
+	pGameView->gameover = TRUE;
+	if (b) {//ganham invasores
+		MessageBox(NULL, _T("Invaders win the game."), _T("GAME OVER"), MB_OK | MB_ICONEXCLAMATION | MB_TASKMODAL);
+		pGameView->whoWins = TRUE; //sinal que foram os invaders a ganhar
 
 	}
+	else {
+		MessageBox(NULL, _T("Players win the game."), _T("GAME OVER"), MB_OK | MB_ICONEXCLAMATION | MB_TASKMODAL);
+		pGameView->whoWins = TRUE; //sinal que foram os players a ganhar
+	}
+
+	//TODO->RESET GAME BLA BLA BLA
 
 }
 
