@@ -13,7 +13,7 @@ BOOL(*wrtMSG)(Command);
 pBuff(*rbuff)();
 HMODULE hDLL;
 HANDLE hThreadListener, eGameUpdate, mGameAcess, hThreadGame, eGameStart;
-HANDLE hThreadNaveEsquiva, hThreadNaveBasica, hThreadNaveBombas, hThreadTiros;
+HANDLE hThreadNaveEsquiva, hThreadNaveBasica, hThreadNaveBombas, hThreadTiros, hThreadPowerUps;
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
@@ -31,7 +31,7 @@ DWORD WINAPI thread_basica(LPVOID nave);
 DWORD WINAPI thread_esquiva(LPVOID nave);
 DWORD WINAPI thread_tiros(LPVOID data);
 DWORD WINAPI thread_bombas(LPVOID data);
-
+DWORD WINAPI thread_PowerUps(LPVOID data);
 
 //DWORD WINAPI thread_Jogo(LPVOID jogo);
 #pragma endregion
@@ -45,11 +45,12 @@ bool verifyID(char id[], char id2[]);
 void start_Jogo();
 void movePlayer(Player *p, int x, int y);
 void shot(Player *p);
-bool Alcool(Player *p);
+bool verifyPowerUp(Player *p, char c);
 void verifyColisionB(Bomba *b);
 void bombas(bool change = false);
 BOOL start_threads();
 void GameOver(BOOL b);
+void verifyColisionP(PowerUP *p);
 //UI FUNCS
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
@@ -313,7 +314,7 @@ INT_PTR CALLBACK Dif(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 
 		SendMessage(GetDlgItem(hDlg, IDC_SLIDER_VELINV), WM_USER + 5, (WPARAM)TRUE, (LPARAM)50);
 
-		SendMessage(GetDlgItem(hDlg, IDC_SLIDER_POWERFREQ), WM_USER + 5, (WPARAM)TRUE, (LPARAM)20);
+		SendMessage(GetDlgItem(hDlg, IDC_SLIDER_POWERFREQ), WM_USER + 5, (WPARAM)TRUE, (LPARAM)15);
 
 		SendMessage(GetDlgItem(hDlg, IDC_SLIDER_POWERDUR), WM_USER + 5, (WPARAM)TRUE, (LPARAM)40);
 
@@ -344,7 +345,7 @@ INT_PTR CALLBACK Dif(HWND hDlg, UINT message, WPARAM wParam, LPARAM lParam)
 			result = SendMessage(GetDlgItem(hDlg, IDC_SLIDER_POWERFREQ), WM_USER, (WPARAM)0, 0);
 			pGameView->pPower = result;
 			result = SendMessage(GetDlgItem(hDlg, IDC_SLIDER_POWERDUR), WM_USER, (WPARAM)0, 0);
-			pGameView->DurPower = result;
+			pGameView->DurPower = result/10;
 			result = SendMessage(GetDlgItem(hDlg, IDC_SLIDER_PLAYERLIFES), WM_USER, (WPARAM)0, 0);
 			pGameView->nVidasPlayer = result/10;
 			result = SendMessage(GetDlgItem(hDlg, IDC_SLIDER_VELBOMB), WM_USER, (WPARAM)0, 0);
@@ -416,22 +417,22 @@ void TrataComando(Command temp) {
 		CopyMemory(pGameView->player[temp.id].username,temp.username, sizeof(temp.username));
 		break;
 	case LEFT:
-		if (Alcool(&pGameView->player[temp.id]))
+		if (verifyPowerUp(&pGameView->player[temp.id], 'A'))
 			x += 1;
 		else x -= 1;
 		break;
 	case RIGHT:
-		if (Alcool(&pGameView->player[temp.id]))
+		if (verifyPowerUp(&pGameView->player[temp.id], 'A'))
 			x -= 1;
 		else x += 1;
 		break;
 	case UP:
-		if (Alcool(&pGameView->player[temp.id]))
+		if (verifyPowerUp(&pGameView->player[temp.id], 'A'))
 			y += 1;
 		else y -= 1;
 		break;
 	case DOWN:
-		if (Alcool(&pGameView->player[temp.id]))
+		if (verifyPowerUp(&pGameView->player[temp.id], 'A'))
 			y -= 1;
 		else y += 1;
 		break;
@@ -454,10 +455,9 @@ void TrataComando(Command temp) {
 	ResetEvent(eGameUpdate);	//fecha a sinalização do evento
 }
 
-bool Alcool(Player *p) {
-	return false;
+bool verifyPowerUp(Player *p, char c) {
 	for (int i = 0; i < 10; i++) {
-		if (p->powerups[i].e.id[0] == 'A')
+		if (p->powerups[i].e.id[0] == c)
 			return true;
 	}
 	return false;
@@ -483,13 +483,22 @@ void movePlayer(Player *p, int x, int y) {
 					return;
 		}
 	}
+
 	p->nave.e.x = x;
 	p->nave.e.y = y;
+
+	for (int i = 0; i < 20; i++)
+		if(pGameView->powerups[i].e.id[0] != 'i')
+			verifyColisionP(&pGameView->powerups[i]);
 	/*
 	*/
 }
 
 void shot(Player *p) {
+	for (int i = 0; i < 100; i++) {
+		if (pGameView->tiros[i].e.x == p->nave.e.x + p->nave.e.largura / 2 && pGameView->tiros[i].e.y == p->nave.e.y - 1)
+			return;
+	}
 	for (int i = 0; i < 100; i++) {
 		if (pGameView->tiros[i].e.id[0] == 'i') {
 			pGameView->tiros[i].e.id[0] = 'l';
@@ -673,14 +682,24 @@ BOOL start_threads() {
 		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
 		return FALSE;
 	}
+
+	hThreadPowerUps = CreateThread(NULL, 0, thread_PowerUps, NULL, 0, 0); //inicia thread para naves basicas
+	if (hThreadPowerUps == NULL) {
+		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
+		return FALSE;
+	}
 	return TRUE;
 }
 
 DWORD WINAPI thread_basica(LPVOID nave) {
 
 	while (pGameView->nNavesNormais > 0) {
-
-		Sleep( (DWORD)(1000 - pGameView->velNave*10));
+		for (int i = 0; i < pGameView->nPlayers; i++)
+			if (verifyPowerUp(&pGameView->player[i], 'B'))//se houver uma bateria activa
+				Sleep((DWORD)(1000 - pGameView->velNave * 10)-500);
+			else
+				Sleep((DWORD)(1000 - pGameView->velNave * 10));
+		
 		WaitForSingleObject(mGameAcess, INFINITE);
 
 		for (int i = pGameView->nNavesNormais - 1; i >= 0; i--) {
@@ -811,7 +830,14 @@ DWORD WINAPI thread_esquiva(LPVOID nave) {
 	//	Nave *n = gameData.navesesquivas;
 
 	while (pGameView->nNavesEsquivas > 0) {
-		Sleep((DWORD)(1000 - (pGameView->velNave * 10)*0.60));
+
+
+		for (int i = 0; i < pGameView->nPlayers; i++)
+			if (verifyPowerUp(&pGameView->player[i], 'B'))//se houver uma bateria activa
+				Sleep((DWORD)(1000 - (pGameView->velNave * 10)*0.60)-500);
+			else
+				Sleep((DWORD)(1000 - (pGameView->velNave * 10)*0.60));
+		
 		WaitForSingleObject(mGameAcess, INFINITE);
 
 		for (int i = pGameView->nNavesEsquivas - 1; i > -1; i--) {
@@ -860,7 +886,13 @@ DWORD WINAPI thread_esquiva(LPVOID nave) {
 
 DWORD WINAPI thread_tiros(LPVOID data) {
 	while (1) {
-		Sleep((DWORD)(1000 - (pGameView->velTiro * 10)));
+
+		for (int i = 0; i < pGameView->nPlayers; i++)
+			if (verifyPowerUp(&pGameView->player[i], 'B'))//se houver uma bateria activa
+				Sleep((DWORD)(1000 - (pGameView->velTiro * 10)-500));
+			else
+				Sleep((DWORD)(1000 - (pGameView->velTiro * 10)));
+
 		WaitForSingleObject(mGameAcess,INFINITE);
 		for (int i = 0; i < 100; i++) {
 			if ((pGameView->tiros[i].e.id[0] != 'i')) {
@@ -899,8 +931,10 @@ DWORD WINAPI thread_bombas(LPVOID data) {
 			if ((pGameView->powerups[i].e.id[0] != 'i')) {
 				if (pGameView->powerups[i].e.y > pGameView->maxY)
 					pGameView->powerups[i].e.id[0] = 'i';
-				else
+				else {
 					pGameView->powerups[i].e.y += 1;
+					verifyColisionP(&pGameView->powerups[i]);
+				}
 			}
 			else {
 				
@@ -927,7 +961,7 @@ DWORD WINAPI thread_bombas(LPVOID data) {
 					}
 					pGameView->powerups[i].e.x = rand() % pGameView->maxX-1;
 					pGameView->powerups[i].e.y = 0;
-					random=101;
+					random=999;
 				}
 			}
 		}
@@ -937,6 +971,28 @@ DWORD WINAPI thread_bombas(LPVOID data) {
 		ReleaseMutex(mGameAcess);
 		SetEvent(eGameUpdate);		//sinaliza gateway de alterações atravez do evento
 									//Sleep(100);
+		ResetEvent(eGameUpdate);	//fecha a sinalização do evento
+	}
+	return 0;
+}
+
+DWORD WINAPI thread_PowerUps(LPVOID data) {
+	while (1) {
+		Sleep((DWORD)1000); //1 seg
+		WaitForSingleObject(mGameAcess, INFINITE);
+		for (int i = 0; i < pGameView->nPlayers; i++) {
+			for (int j = 0; j < 10; j++) {
+				if ((pGameView->player[i].powerups[j].e.id[0] != 'i')) {
+					pGameView->player[i].powerups[j].time--;
+					if (pGameView->player[i].powerups[j].time<=0) {
+						pGameView->player[i].powerups[j].e.id[0] = 'i';
+					}
+				}
+			}
+		}
+		ReleaseMutex(mGameAcess);
+		SetEvent(eGameUpdate);		//sinaliza gateway de alterações atravez do evento
+
 		ResetEvent(eGameUpdate);	//fecha a sinalização do evento
 	}
 	return 0;
@@ -966,6 +1022,11 @@ bool CanMoveInvader(Nave *n, int x, int y) {
 	int xl = n->e.largura - 1 + x;
 	int ya = n->e.altura  - 1 + y;
 	char *id = n->e.id;
+
+	for (int i = 0; i < pGameView->nPlayers; i++)
+		if (verifyPowerUp(&pGameView->player[i], 'G'))
+			return false;
+			
 
 	if (n->vida <= 0)return false;
 	
@@ -1022,8 +1083,8 @@ void verifyColision(Tiro *t) {
 	for (i = 0; i < pGameView->nNavesEsquivas; i++) {
 		y = pGameView->navesesquivas[i].e.y;
 		x = pGameView->navesesquivas[i].e.x;
-		l = pGameView->navesesquivas[i].e.largura;
-		a = pGameView->navesesquivas[i].e.altura;
+		l = pGameView->navesesquivas[i].e.largura - 1;
+		a = pGameView->navesesquivas[i].e.altura - 1;
 		if (pGameView->navesesquivas[i].vida > 0) {
 			if (t->e.y >= y && t->e.y < y + a) {
 				if (t->e.x >= x && t->e.x < x + l) {
@@ -1051,13 +1112,14 @@ void verifyColisionB(Bomba *b) {
 
 		y = pGameView->player[i].nave.e.y;
 		x = pGameView->player[i].nave.e.x;
-		l = pGameView->player[i].nave.e.largura;
-		a = pGameView->player[i].nave.e.altura;
+		l = pGameView->player[i].nave.e.largura - 1;
+		a = pGameView->player[i].nave.e.altura  - 1;
 
-		if (b->e.y >= y && b->e.y < y + a) {
-			if (b->e.x >= x && b->e.x < x + l) {
+		if (b->e.y >= y && b->e.y <= y + a) {
+			if (b->e.x >= x && b->e.x <= x + l) {
 				if (pGameView->player[i].nvidas > 0) {
 					b->e.id[0] = 'i';
+					if(!verifyPowerUp(&pGameView->player[i], 'E'))
 					pGameView->player[i].nvidas --;
 					if (pGameView->player[i].nvidas <= 0) {
 						pGameView->player[i].nave.e.id[0] = 'i';
@@ -1070,6 +1132,49 @@ void verifyColisionB(Bomba *b) {
 		}
 	}
 }
+
+void verifyColisionP(PowerUP *p) {
+	int i, y, x, l, a;
+
+	for (i = 0; i < pGameView->nPlayers; i++) {
+
+		y = pGameView->player[i].nave.e.y;
+		x = pGameView->player[i].nave.e.x;
+		l = pGameView->player[i].nave.e.largura -1;
+		a = pGameView->player[i].nave.e.altura - 1;
+
+		if (p->e.y >= y && p->e.y <= y + a) {
+			if (p->e.x >= x && p->e.x <= x + l) {
+				if (pGameView->player[i].nvidas > 0) {
+					//PowerUp Existente
+					for (int j = 0; j < 10; j++) {
+						if (pGameView->player[i].powerups[j].e.id[0] == p->e.id[0]) {
+							pGameView->player[i].powerups[j].time = pGameView->DurPower;
+							p->e.id[0] = 'i';
+							return;
+						}
+					}
+					//Novo powerUp
+					for (int j = 0; j < 10; j++) {
+						if (pGameView->player[i].powerups[j].e.id[0] == 'i') {
+							if (p->e.id[0] == 'V'){
+								pGameView->player[i].nvidas++;
+							}
+							else {
+								pGameView->player[i].powerups[j].e.id[0] = p->e.id[0];
+								pGameView->player[i].powerups[j].time = pGameView->DurPower;
+							}
+							p->e.id[0] = 'i';
+							return;
+						}
+					}
+				}
+			}
+		}
+	}
+}
+
+
 void GameOver(BOOL b) {
 
 	pGameView->gameover = TRUE;
