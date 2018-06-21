@@ -12,11 +12,12 @@ BOOL(*setGame)(pJogo game);
 BOOL(*wrtMSG)(Command);
 pBuff(*rbuff)();
 HMODULE hDLL;
-HANDLE hThreadListener, eGameUpdate, mGameAcess, hThreadGame, eGameStart;
+HANDLE hThreadListener, eGameUpdate, mGameAcess, eGameStart;
 HANDLE hThreadNaveEsquiva, hThreadNaveBasica, hThreadNaveBombas, hThreadTiros, hThreadPowerUps;
 HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
-WCHAR szWindowClass[MAX_LOADSTRING];            // the main window class name
+WCHAR szWindowClass[MAX_LOADSTRING];       
+BOOL gameover;
 
 //Jogo gameData;
 HANDLE hGame;
@@ -51,6 +52,8 @@ void bombas(bool change = false);
 BOOL start_threads();
 void GameOver(BOOL b);
 void verifyColisionP(PowerUP *p);
+void resetGame();
+
 //UI FUNCS
 ATOM                MyRegisterClass(HINSTANCE hInstance);
 BOOL                InitInstance(HINSTANCE, int);
@@ -126,25 +129,7 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,_In_opt_ HINSTANCE hPrevInstance,
 		return 0;
 	}
 
-	/*_tprintf(TEXT("PARA TESTES DE COMS COM GATEWAY E INICIALIZAÇÃO-> Insira dificuldade (1,2,3)"));
-	_tscanf_s(_T("%d"), &resp);
-	pGameView->dificuldade = resp;
-	_tprintf(TEXT("PARA TESTES DE COMS COM GATEWAY E INICIALIZAÇÃO-> Startgame? (1)"));
-	_tscanf_s(_T("%d"), &resp);
-	if (resp == 1) {
-		start_Jogo();
 
-		SetEvent(eGameStart);//sinaliza gateway de alterações atravez do evento
-		ResetEvent(eGameStart);//fecha a sinalização do evento
-		SetEvent(eGameUpdate);//sinaliza gateway de alterações atravez do evento
-		ResetEvent(eGameUpdate);//fecha a sinalização do evento
-		hThreadGame = CreateThread(NULL, 0, thread_Jogo, NULL, 0, 0);
-		if (hThreadGame == NULL) {
-			_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting listener thread\n %d  \n"), GetLastError());
-			return 0;
-		}
-
-	}*/
 	HACCEL hAccelTable = LoadAccelerators(hInstance, MAKEINTRESOURCE(IDR_ACCELERATOR1));
 	MSG msg;
 
@@ -160,7 +145,6 @@ int APIENTRY wWinMain(_In_ HINSTANCE hInstance,_In_opt_ HINSTANCE hPrevInstance,
 	
 	//WaitForSingleObject(hThreadListener, INFINITE);
 	CloseHandle(hThreadListener);
-	CloseHandle(hThreadGame);
 	CloseHandle(hThreadNaveBasica);
 	CloseHandle(hThreadNaveEsquiva);
 
@@ -240,11 +224,8 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 
 		case ID_NEWGAME: //StartGame
 
-			if (pGameView->nPlayers == 0) {
-			
+			if (pGameView->nPlayers == 0) {			
 				MessageBox(NULL, _T("No players connected."), _T("Unnable to start"), MB_OK | MB_ICONERROR| MB_TASKMODAL);
-
-			
 			}
 			else {
 			hList = CreateWindowEx(0, _T("listbox"), _T("LOG"), WS_CHILD | WS_VISIBLE | LBS_STANDARD | WS_CAPTION | LBS_HASSTRINGS, 0, 0, 400, 100, hWnd, (HMENU)1, NULL, 0);
@@ -254,6 +235,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			}
 			break;
 		case ID_TERMINATEGAME: //TermGame
+			resetGame();
 			EnableMenuItem(menu, ID_TERMINATEGAME, MF_GRAYED);
 			EnableMenuItem(menu, ID_NEWGAME, MF_ENABLED);
 			ShowWindow(hList, SW_HIDE);
@@ -1179,16 +1161,34 @@ void GameOver(BOOL b) {
 
 	pGameView->gameover = TRUE;
 	if (b) {//ganham invasores
-		MessageBox(NULL, _T("Invaders win the game."), _T("GAME OVER"), MB_OK | MB_ICONEXCLAMATION | MB_TASKMODAL);
+	//	MessageBox(NULL, _T("Invaders win the game."), _T("GAME OVER"), MB_OK | MB_ICONEXCLAMATION | MB_TASKMODAL);
 		pGameView->whoWins = TRUE; //sinal que foram os invaders a ganhar
 
 	}
 	else {
-		MessageBox(NULL, _T("Players win the game."), _T("GAME OVER"), MB_OK | MB_ICONEXCLAMATION | MB_TASKMODAL);
-		pGameView->whoWins = TRUE; //sinal que foram os players a ganhar
+		//MessageBox(NULL, _T("Players win the game."), _T("GAME OVER"), MB_OK | MB_ICONEXCLAMATION | MB_TASKMODAL);
+		pGameView->whoWins = FALSE; //sinal que foram os players a ganhar
 	}
 
+	resetGame();
+
 	//TODO->RESET GAME BLA BLA BLA
+
+}
+
+void resetGame() {
+	pGameView->gameover = TRUE;
+	SetEvent(eGameUpdate);		//sinaliza gateway de alterações atravez do evento
+
+	ResetEvent(eGameUpdate);	//fecha a sinalização do evento
+	Sleep(500);
+	TerminateThread(hThreadNaveBasica, 0);
+	TerminateThread(hThreadNaveBombas, 0);
+	TerminateThread(hThreadNaveEsquiva, 0);
+	TerminateThread(hThreadPowerUps, 0);
+	TerminateThread(hThreadTiros, 0);
+
+	ZeroMemory(pGameView, sizeof(Jogo));
 
 }
 
