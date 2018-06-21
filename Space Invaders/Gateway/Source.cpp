@@ -1,6 +1,7 @@
 #include "../Space Invaders/utils.h"
-
+#include <sddl.h>
 #define PIPE_NAME TEXT("\\\\.\\pipe\\GamePipe")
+#define _WIN32_WINNT 0x0500
 
 BOOL(*OpenGame)(void);
 BOOL(*OpenBuff)(void);
@@ -141,19 +142,59 @@ DWORD WINAPI GameStart_Thread(LPVOID data) {
 
 		return 0;
 }
+BOOL CreateMyDACL(SECURITY_ATTRIBUTES * pSA)
+{
+	// Define the SDDL for the DACL. This example sets 
+	// the following access:
+	//     Built-in guests are denied all access.
+	//     Anonymous logon is denied all access.
+	//     Authenticated users are allowed 
+	//     read/write/execute access.
+	//     Administrators are allowed full control.
+	// Modify these values as needed to generate the proper
+	// DACL for your application. 
+	TCHAR * szSD = (_TCHAR*)TEXT("D:")       // Discretionary ACL
+		TEXT("(D;OICI;GA;;;BG)")     // Deny access to 
+									 // built-in guests
+		TEXT("(A;OICI;GA;;;AN)")     // Deny access to 
+									 // anonymous logon
+		TEXT("(A;OICI;GRGWGX;;;AU)") // Allow 
+									 // read/write/execute 
+									 // to authenticated 
+									 // users
+		TEXT("(A;OICI;GA;;;BA)");    // Allow full control 
+									 // to administrators
+
+	if (NULL == pSA)
+		return FALSE;
+
+	return ConvertStringSecurityDescriptorToSecurityDescriptor(
+		szSD,
+		SDDL_REVISION_1,
+		&(pSA->lpSecurityDescriptor),
+		NULL);
+}
+
 
 DWORD WINAPI connect_Thread(LPVOID data) {
 	//THREAD T1
 	int i;
 	HANDLE hT;
+	SECURITY_ATTRIBUTES sa;
 
+
+	if (!CreateMyDACL(&sa)) {
+		// Error encountered; generate message and exit.
+		printf("Failed CreateMyDACL\n");
+		exit(1);
+	}
 	for (int i = 0; i < 5; i++)
 		hPlayer[i] = NULL;
 
 
 	while (1) {
 		_tprintf(TEXT("[DEBUG] Criar uma cópia do pipe '%s' ... (CreateNamedPipe)\n"), PIPE_NAME);
-		p = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, PIPE_UNLIMITED_INSTANCES, PIPEBUFFSIZE, PIPEBUFFSIZE, 1000, NULL);
+		p = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, PIPE_UNLIMITED_INSTANCES, PIPEBUFFSIZE, PIPEBUFFSIZE, 1000, &sa);
 		if (p == INVALID_HANDLE_VALUE) { _tprintf(TEXT("[ERRO] criar pipe! (CreateNamedPipe\n")); exit(-1); }
 
 
