@@ -1,7 +1,9 @@
+#define _WIN32_WINNT 0x0500
+
+
 #include "../Space Invaders/utils.h"
 #include <sddl.h>
 #define PIPE_NAME TEXT("\\\\.\\pipe\\GamePipe")
-#define _WIN32_WINNT 0x0500
 
 BOOL(*OpenGame)(void);
 BOOL(*OpenBuff)(void);
@@ -9,10 +11,11 @@ Command(*GetMSG)();
 BOOL(*wrtMSG)(Command);
 pBuff(*rbuff)();
 Jogo(*getGame)();
-
+Jogo gamedata;
 HMODULE hDLL;
-HANDLE eGameAcess, hGameUpdateThread, hGameStartThread, hPlayer[5], hConnectThread,p;
-
+HANDLE eGameAcess, hGameUpdateThread, hGameStartThread, hPlayer[5], hConnectThread, p;
+HANDLE hT[5];
+BOOL StartThreads(BOOL reset);
 BOOL GetLogin(HANDLE hPipeL, int PlayerID);
 //THREADs
 DWORD WINAPI GameUpdateThread(LPVOID params);
@@ -45,40 +48,52 @@ int _tmain(int argc, LPTSTR argv[]) {
 	OpenGame(); //carrega jogo da memoria
 	OpenBuff(); //carrega buffer da memoria
 
+
+	if (!StartThreads(FALSE))
+		return 0;
+
+	WaitForSingleObject(hGameUpdateThread, INFINITE);
+	return 0;
+}
+
+BOOL StartThreads(BOOL reset) {
+
+	if (reset) {
+		Sleep(2000);
+		TerminateThread(GameUpdateThread, 0);
+
+
+		for (int i = 0; i < 5; i++) {
+			CloseHandle(hPlayer[i]);
+			if (hT[i] != NULL)
+				TerminateThread(hT[i], 0);
+			hT[i] = NULL;
+			hPlayer[i] = NULL;
+		}
+		gamedata.gameover = FALSE;
+		Sleep(1000);
+	}
+	else {
+		hGameUpdateThread = CreateThread(NULL, 0, GameUpdateThread, NULL, 0, 0);
+		if (hGameUpdateThread == NULL) {
+			_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting game update thread\n %d  \n"), GetLastError());
+			return FALSE;
+		}
+
+	}
+
 	hConnectThread = CreateThread(NULL, 0, connect_Thread, NULL, 0, 0);
 	if (hConnectThread == NULL) {
 		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting game update thread\n %d  \n"), GetLastError());
-		return 0;
+		return FALSE;
 	}
 	hGameStartThread = CreateThread(NULL, 0, GameStart_Thread, NULL, 0, 0);
 	if (hGameStartThread == NULL) {
 		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting game update thread\n %d  \n"), GetLastError());
-		return 0;
-	}
-	hGameUpdateThread = CreateThread(NULL, 0, GameUpdateThread, NULL, 0, 0);
-	if (hGameUpdateThread == NULL) {
-		_tprintf(TEXT("[(DEBUG)Thread:Erro-> Error starting game update thread\n %d  \n"), GetLastError());
-		return 0;
+		return FALSE;
 	}
 
-	/*_tprintf(TEXT("TESTE COMANDOS GATEWAY \n"));
-	do {
-		_tprintf(TEXT("Insira id comando: "));
-		_tscanf_s(TEXT("%d"), &cmd.id);
-		_tprintf(TEXT("\nInsira valor do comando: "));
-		_tscanf_s(TEXT("%d"), &cmd.cmd);
-
-		if (!wrtMSG(cmd)) {
-			_tprintf(TEXT("Erro: não foi possível escrever do buffer -> %d\n"), GetLastError());
-			return 0;
-		}
-
-	} while (1);*/
-
-
-
-	WaitForSingleObject(hGameUpdateThread, INFINITE);
-	return 0;
+	return TRUE;
 }
 
 void broadcast(Jogo gamedata) {
@@ -112,7 +127,6 @@ void broadcast(Jogo gamedata) {
 
 DWORD WINAPI GameUpdateThread(LPVOID params) {
 	eGameAcess = OpenEvent(EVENT_ALL_ACCESS, TRUE, _T("GameUpdateEvent"));
-	Jogo gamedata;
 
 	do {
 		WaitForSingleObject(eGameAcess, INFINITE);
@@ -121,7 +135,9 @@ DWORD WINAPI GameUpdateThread(LPVOID params) {
 
 		broadcast(gamedata);//envia actualização a todos os players
 
-
+		if (gamedata.gameover) {
+			StartThreads(TRUE);
+		}
 
 
 	} while (1);
@@ -135,12 +151,12 @@ DWORD WINAPI GameUpdateThread(LPVOID params) {
 DWORD WINAPI GameStart_Thread(LPVOID data) {
 	HANDLE eGameStart = OpenEvent(EVENT_ALL_ACCESS, TRUE, _T("GameStartEvent"));
 	WaitForSingleObject(eGameStart, INFINITE);
-		TerminateThread(hConnectThread, 0);
-		DisconnectNamedPipe(p);
-		CloseHandle(p);
-		_tprintf(TEXT("Finalizei thread de connects\n"));
+	TerminateThread(hConnectThread, 0);
+	DisconnectNamedPipe(p);
+	CloseHandle(p);
+	_tprintf(TEXT("Finalizei thread de connects\n"));
 
-		return 0;
+	return 0;
 }
 BOOL CreateMyDACL(SECURITY_ATTRIBUTES * pSA)
 {
@@ -179,7 +195,6 @@ BOOL CreateMyDACL(SECURITY_ATTRIBUTES * pSA)
 DWORD WINAPI connect_Thread(LPVOID data) {
 	//THREAD T1
 	int i;
-	HANDLE hT;
 	SECURITY_ATTRIBUTES sa;
 
 
@@ -195,7 +210,9 @@ DWORD WINAPI connect_Thread(LPVOID data) {
 	while (1) {
 		_tprintf(TEXT("[DEBUG] Criar uma cópia do pipe '%s' ... (CreateNamedPipe)\n"), PIPE_NAME);
 		p = CreateNamedPipe(PIPE_NAME, PIPE_ACCESS_DUPLEX | FILE_FLAG_OVERLAPPED, PIPE_WAIT | PIPE_TYPE_MESSAGE | PIPE_READMODE_MESSAGE, PIPE_UNLIMITED_INSTANCES, PIPEBUFFSIZE, PIPEBUFFSIZE, 1000, &sa);
-		if (p == INVALID_HANDLE_VALUE) { _tprintf(TEXT("[ERRO] criar pipe! (CreateNamedPipe\n")); exit(-1); }
+		if (p == INVALID_HANDLE_VALUE) {
+			_tprintf(TEXT("[ERRO] criar pipe! (CreateNamedPipe\n")); exit(-1);
+		}
 
 
 		_tprintf(TEXT("[DEBUG] Esperar ligação de um cliente...(ConnectNamedPipe)\n"));
@@ -208,17 +225,18 @@ DWORD WINAPI connect_Thread(LPVOID data) {
 			if (hPlayer[i] == NULL) {
 				hPlayer[i] = p;
 				_tprintf(TEXT("[CONNECTED] Ligação ao cliente! (ConnectNamedPipe) \n"));
+				hT[i] = CreateThread(NULL, 0, thread_read, (LPVOID)i, 0, 0);
+				if (hT[i] == NULL)
+				{
+					_tprintf(TEXT("[DEBUG] ERRO AO INICIAR THREAD \n"));
+				}
 				break;
 			}
 
 		}
 		//	GetLogin(p, i);
 		//thread para tratar pedidos do pipe
-		hT = CreateThread(NULL, 0, thread_read, (LPVOID)i, 0, 0);
-		if (hT == NULL)
-		{
-			_tprintf(TEXT("[DEBUG] ERRO AO INICIAR THREAD \n"));
-		}
+
 
 
 	}
@@ -280,7 +298,7 @@ DWORD WINAPI thread_read(LPVOID data) {
 	Command c;
 	DWORD rn;
 	BOOL ret;
-	int PlayerID =  (int)data;
+	int PlayerID = (int)data;
 	HANDLE hPipeL = hPlayer[PlayerID];
 	HANDLE IOReady;
 	//wrtMSG = (BOOL(*)(Command))GetProcAddress(hDLL, "WriteBuffer");
@@ -304,7 +322,7 @@ DWORD WINAPI thread_read(LPVOID data) {
 			break;
 		}
 		else {
-			
+
 			if (!wrtMSG(c)) {
 				_tprintf(TEXT("Erro: não foi possível escrever do buffer -> %d\n"), GetLastError());
 				return 0;

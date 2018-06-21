@@ -18,6 +18,8 @@ HINSTANCE hInst;                                // current instance
 WCHAR szTitle[MAX_LOADSTRING];                  // The title bar text
 WCHAR szWindowClass[MAX_LOADSTRING];       
 BOOL gameover;
+HMENU menu;
+
 
 //Jogo gameData;
 HANDLE hGame;
@@ -50,9 +52,10 @@ bool verifyPowerUp(Player *p, char c);
 void verifyColisionB(Bomba *b);
 void bombas(bool change = false);
 BOOL start_threads();
-void GameOver(BOOL b);
+void GameOver(int b);
 void verifyColisionP(PowerUP *p);
 void resetGame();
+void SaveInReg();
 
 //UI FUNCS
 ATOM                MyRegisterClass(HINSTANCE hInstance);
@@ -200,7 +203,7 @@ BOOL InitInstance(HINSTANCE hInstance, int nCmdShow)
 }
 LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 {
-	HMENU menu = GetMenu(hWnd);
+	menu = GetMenu(hWnd);
 	HWND hList = NULL;
 	switch (message)
 	{
@@ -235,7 +238,7 @@ LRESULT CALLBACK WndProc(HWND hWnd, UINT message, WPARAM wParam, LPARAM lParam)
 			}
 			break;
 		case ID_TERMINATEGAME: //TermGame
-			resetGame();
+			GameOver(3);
 			EnableMenuItem(menu, ID_TERMINATEGAME, MF_GRAYED);
 			EnableMenuItem(menu, ID_NEWGAME, MF_ENABLED);
 			ShowWindow(hList, SW_HIDE);
@@ -872,8 +875,6 @@ DWORD WINAPI thread_tiros(LPVOID data) {
 			if (verifyPowerUp(&pGameView->player[i], 'B'))//se houver uma bateria activa
 				aux = 0.5;
 
-
-
 				Sleep((DWORD)(1200 - (pGameView->velTiro * 10))*aux);
 
 		WaitForSingleObject(mGameAcess,INFINITE);
@@ -1084,7 +1085,7 @@ void verifyColision(Tiro *t) {
 	}
 
 	if ((pGameView->nEsquivasVivas + pGameView->nNormaisVivas) < 1)
-		GameOver(FALSE);
+		GameOver(2);
 
 }
 
@@ -1108,7 +1109,7 @@ void verifyColisionB(Bomba *b) {
 						pGameView->player[i].nave.e.id[0] = 'i';
 						pGameView->nPlayersVivos--;
 						if (pGameView->nPlayersVivos < 1)
-							GameOver(TRUE);
+							GameOver(1);
 					}
 				}
 			}
@@ -1158,17 +1159,16 @@ void verifyColisionP(PowerUP *p) {
 }
 
 
-void GameOver(BOOL b) {
+void GameOver(int b) {
 
 	pGameView->gameover = TRUE;
-	if (b) {//ganham invasores
-	//	MessageBox(NULL, _T("Invaders win the game."), _T("GAME OVER"), MB_OK | MB_ICONEXCLAMATION | MB_TASKMODAL);
-		pGameView->whoWins = TRUE; //sinal que foram os invaders a ganhar
+	SaveInReg();
+	pGameView->whoWins = b;
 
-	}
-	else {
-		//MessageBox(NULL, _T("Players win the game."), _T("GAME OVER"), MB_OK | MB_ICONEXCLAMATION | MB_TASKMODAL);
-		pGameView->whoWins = FALSE; //sinal que foram os players a ganhar
+	if (b < 3)
+	{
+		EnableMenuItem(menu, ID_TERMINATEGAME, MF_GRAYED);
+		EnableMenuItem(menu, ID_NEWGAME, MF_ENABLED);
 	}
 
 	resetGame();
@@ -1178,7 +1178,6 @@ void GameOver(BOOL b) {
 }
 
 void resetGame() {
-	pGameView->gameover = TRUE;
 	SetEvent(eGameUpdate);		//sinaliza gateway de alterações atravez do evento
 
 	ResetEvent(eGameUpdate);	//fecha a sinalização do evento
@@ -1217,3 +1216,42 @@ bool verifyID(char id[], char id2[]) {
 #pragma endregion
 
 #pragma endregion
+void SaveInReg() {
+	HKEY KEY;
+	DWORD flag;
+	TCHAR str[200], user[200], username[20];
+
+	//Criar/abrir uma chave em HKEY_CURRENT_USER\Software\MinhaAplicacao
+	if (RegCreateKeyEx(HKEY_CURRENT_USER, TEXT("Software\\SpaceInvaders"), 0, NULL,
+		REG_OPTION_NON_VOLATILE, KEY_ALL_ACCESS, NULL, &KEY, &flag) !=
+		ERROR_SUCCESS) {
+		_tprintf(TEXT("Erro ao criar/abrir chave (%d)\n"), GetLastError());
+		return;
+	}
+	else {
+		//Se a chave foi criada, inicializar os valores
+		if (flag == REG_CREATED_NEW_KEY) {
+
+			for (int i = 0; i < pGameView->nPlayers; i++) {
+				for (int i = 0; i < 20; i++)
+					username[i] = pGameView->player[0].username[i];
+				_stprintf_s(str, 200, TEXT("Username :%s Pontuação:%d\n"), username, pGameView->player[0].points);
+				_stprintf_s(user, 200, TEXT("Place:%d"), i);
+				RegSetValueEx(KEY, user, 0, REG_SZ, (LPBYTE)str, _tcslen(str) * sizeof(TCHAR));
+			}
+		}//Se a chave foi aberta, ler os valores lá guardados
+		else if (flag == REG_OPENED_EXISTING_KEY) {
+			for (int i = 0; i < pGameView->nPlayers; i++) {
+				for (int i = 0; i < 20; i++)
+					username[i] = pGameView->player[0].username[i];
+				_stprintf_s(str, 200, TEXT("Username :%s Pontuação:%d\n"), username, pGameView->player[0].points);
+				_stprintf_s(user, 200, TEXT("Place:%d"), i);
+				RegSetValueEx(KEY, user, 0, REG_SZ, (LPBYTE)str, _tcslen(str) * sizeof(TCHAR));
+			}
+		}
+		RegCloseKey(KEY);
+	}
+	return;
+
+
+}
