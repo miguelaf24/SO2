@@ -674,13 +674,13 @@ BOOL start_threads() {
 }
 
 DWORD WINAPI thread_basica(LPVOID nave) {
-
+	float aux=1;
 	while (pGameView->nNavesNormais > 0) {
 		for (int i = 0; i < pGameView->nPlayers; i++)
-			if (verifyPowerUp(&pGameView->player[i], 'B'))//se houver uma bateria activa
-				Sleep((DWORD)(1000 - pGameView->velNave * 10)-500);
-			else
-				Sleep((DWORD)(1000 - pGameView->velNave * 10));
+			if (verifyPowerUp(&pGameView->player[i], 'M'))//se houver uma bateria activa
+				aux = 0.5;
+				
+		Sleep((DWORD)(1200 - pGameView->velNave * 10) * aux);
 		
 		WaitForSingleObject(mGameAcess, INFINITE);
 
@@ -810,15 +810,13 @@ DWORD WINAPI thread_basica(LPVOID nave) {
 
 DWORD WINAPI thread_esquiva(LPVOID nave) {
 	//	Nave *n = gameData.navesesquivas;
-
+	float aux = 1;
 	while (pGameView->nNavesEsquivas > 0) {
-
-
 		for (int i = 0; i < pGameView->nPlayers; i++)
-			if (verifyPowerUp(&pGameView->player[i], 'B'))//se houver uma bateria activa
-				Sleep((DWORD)(1000 - (pGameView->velNave * 10)*0.60)-500);
-			else
-				Sleep((DWORD)(1000 - (pGameView->velNave * 10)*0.60));
+			if (verifyPowerUp(&pGameView->player[i], 'M'))//se houver uma bateria activa
+				aux = 0.5;
+
+		Sleep((DWORD)(1200 - (pGameView->velNave * 10)*0.60)*aux);
 		
 		WaitForSingleObject(mGameAcess, INFINITE);
 
@@ -867,13 +865,16 @@ DWORD WINAPI thread_esquiva(LPVOID nave) {
 }
 
 DWORD WINAPI thread_tiros(LPVOID data) {
+	float aux = 1;
 	while (1) {
 
 		for (int i = 0; i < pGameView->nPlayers; i++)
 			if (verifyPowerUp(&pGameView->player[i], 'B'))//se houver uma bateria activa
-				Sleep((DWORD)(1000 - (pGameView->velTiro * 10)-500));
-			else
-				Sleep((DWORD)(1000 - (pGameView->velTiro * 10)));
+				aux = 0.5;
+
+
+
+				Sleep((DWORD)(1200 - (pGameView->velTiro * 10))*aux);
 
 		WaitForSingleObject(mGameAcess,INFINITE);
 		for (int i = 0; i < 100; i++) {
@@ -898,7 +899,7 @@ DWORD WINAPI thread_bombas(LPVOID data) {
 	int random;
 	srand((int)time(NULL));
 	while (1) {
-		Sleep((DWORD)(1000 - (pGameView->velPoweupBomba * 10)));
+		Sleep((DWORD)(1200 - (pGameView->velPoweupBomba * 10)));
 		WaitForSingleObject(mGameAcess, INFINITE);
 
 #pragma region Bombas
